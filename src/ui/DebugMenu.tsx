@@ -88,6 +88,18 @@ export function DebugMenu() {
           <span className="action-label">Spawn 1 of each</span>
           <span className="action-sub">12 species into {tankName}</span>
         </button>
+        <button
+          type="button"
+          className="action"
+          onClick={() => {
+            dispatch({ type: 'debugSpawnFish', tankId, speciesId: 'danio', count: 8 });
+            dispatch({ type: 'debugSpawnFish', tankId, speciesId: 'neon', count: 8 });
+            close(null);
+          }}
+        >
+          <span className="action-label">Spawn schools</span>
+          <span className="action-sub">8 danios + 8 neons</span>
+        </button>
         <button type="button" className="action" onClick={() => close({ kind: 'gallery' })}>
           <span className="action-label">Fish gallery</span>
           <span className="action-sub">every phenotype</span>
