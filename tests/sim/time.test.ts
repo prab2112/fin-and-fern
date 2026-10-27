@@ -56,6 +56,13 @@ describe('advanceAccumulator (GDD §1: 1 game h = 10 real s at 1×)', () => {
   it('does nothing when paused', () => {
     expect(advanceAccumulator(0.05, 10, 0, 10, 0.1)).toEqual({ steps: 0, acc: 0.05 });
   });
+
+  it('can write into a reused result object (no per-frame allocation)', () => {
+    const out = { steps: 0, acc: 0 };
+    expect(advanceAccumulator(0, 1, 1, 10, 0.1, out)).toBe(out);
+    expect(out.steps).toBe(1);
+    expect(advanceAccumulator(0.05, 10, 0, 10, 0.1, out)).toEqual({ steps: 0, acc: 0.05 });
+  });
 });
 
 describe('game calendar', () => {

@@ -13,24 +13,30 @@ const MAX_FRAME_S = 0.25;
  */
 export function startSimLoop(store: GameStore, clock: Clock, lifecycle: Lifecycle): () => void {
   const { simStepH, realSecondsPerGameHour } = content.balance.time;
-  let acc = 0;
-  let last = clock.monotonicMs();
+  // Frame-timing numbers live in a typed array: writing doubles there doesn't allocate,
+  // unlike reassigning closure variables every frame.
+  const ACC = 0;
+  const LAST = 1;
+  const tm = new Float64Array(2);
+  tm[LAST] = clock.monotonicMs();
+  const step = { steps: 0, acc: 0 };
   let raf = 0;
   let running = true;
 
   const frame = () => {
     if (!running) return;
     const now = clock.monotonicMs();
-    const dt = Math.min(MAX_FRAME_S, (now - last) / 1000);
-    last = now;
+    const dt = Math.min(MAX_FRAME_S, (now - (tm[LAST] as number)) / 1000);
+    tm[LAST] = now;
     const r = advanceAccumulator(
-      acc,
+      tm[ACC] as number,
       dt,
       store.getState().game.speed,
       realSecondsPerGameHour,
       simStepH,
+      step,
     );
-    acc = r.acc;
+    tm[ACC] = r.acc;
     if (r.steps > 0) store.getState().advance(r.steps);
     raf = requestAnimationFrame(frame);
   };
@@ -41,7 +47,7 @@ export function startSimLoop(store: GameStore, clock: Clock, lifecycle: Lifecycl
   };
   const resume = () => {
     if (!running || raf) return;
-    last = clock.monotonicMs();
+    tm[LAST] = clock.monotonicMs();
     raf = requestAnimationFrame(frame);
   };
 
