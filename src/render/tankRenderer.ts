@@ -75,7 +75,7 @@ const QUALITY_DOWN_FPS = 48;
 const QUALITY_UP_FPS = 58;
 const QUALITY_UP_AFTER_MS = 10_000;
 const QUALITY_UP_BACKOFF_MS = 60_000;
-const HAZE = '#0f4651';
+const HAZE = '#14505c';
 
 export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
   const ctxOrNull = canvas.getContext('2d', { alpha: false });
@@ -286,7 +286,7 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
     dirt = tank.dirt;
     algae = tank.algae;
     light =
-      (tank.lightLevel <= 1 ? 0.85 : tank.lightLevel === 2 ? 1 : 1.12) *
+      (tank.lightLevel <= 1 ? 0.95 : tank.lightLevel === 2 ? 1.05 : 1.15) *
       Math.max(0.25, 1 - dirt / 130);
 
     // Plants: re-lay out only when they change.
@@ -391,7 +391,7 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
   }
 
   function drawHaze() {
-    ctx.globalAlpha = 0.07;
+    ctx.globalAlpha = 0.055;
     ctx.fillStyle = HAZE;
     ctx.fillRect(0, 0, view.w, view.h);
     ctx.globalAlpha = 1;

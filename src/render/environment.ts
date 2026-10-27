@@ -160,9 +160,9 @@ export function buildBackdrop(v: View, dpr: number, seed: number): Backdrop {
 
   // Back wall: lit from above, dark below.
   let grad = g.createLinearGradient(0, backSurf, 0, backFloor);
-  grad.addColorStop(0, '#1f6772');
-  grad.addColorStop(0.45, '#123f48');
-  grad.addColorStop(1, '#0a2930');
+  grad.addColorStop(0, '#2a7f8a');
+  grad.addColorStop(0.45, '#17505a');
+  grad.addColorStop(1, '#0c3038');
   g.fillStyle = grad;
   g.fillRect(backL, backSurf, backR - backL, backFloor - backSurf);
   const glow = g.createRadialGradient(
@@ -173,7 +173,7 @@ export function buildBackdrop(v: View, dpr: number, seed: number): Backdrop {
     backSurf,
     (backR - backL) * 0.75,
   );
-  glow.addColorStop(0, 'rgba(120,200,210,0.22)');
+  glow.addColorStop(0, 'rgba(140,215,220,0.28)');
   glow.addColorStop(1, 'rgba(120,200,210,0)');
   g.fillStyle = glow;
   g.fillRect(backL, backSurf, backR - backL, backFloor - backSurf);
@@ -331,7 +331,7 @@ export function buildBackdrop(v: View, dpr: number, seed: number): Backdrop {
   const [front, f] = layer(v, dpr);
   grad = f.createLinearGradient(0, h * 0.35, 0, h);
   grad.addColorStop(0, 'rgba(0,12,16,0)');
-  grad.addColorStop(1, 'rgba(0,12,16,0.3)');
+  grad.addColorStop(1, 'rgba(0,12,16,0.22)');
   f.fillStyle = grad;
   f.fillRect(0, 0, w, h);
   const vig = f.createRadialGradient(
@@ -343,7 +343,7 @@ export function buildBackdrop(v: View, dpr: number, seed: number): Backdrop {
     Math.max(w, h) * 0.8,
   );
   vig.addColorStop(0, 'rgba(0,0,0,0)');
-  vig.addColorStop(1, 'rgba(0,0,0,0.38)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.3)');
   f.fillStyle = vig;
   f.fillRect(0, 0, w, h);
   f.fillStyle = 'rgba(255,255,255,0.035)';
@@ -392,8 +392,8 @@ export function makeLightLayer(v: View): LightLayer | null {
   if (!g) return null;
   const tile = getCausticTile();
   const ray = g.createLinearGradient(0, v.surface, 0, v.floorFront);
-  ray.addColorStop(0, 'rgba(235,255,250,0.16)');
-  ray.addColorStop(0.6, 'rgba(235,255,250,0.05)');
+  ray.addColorStop(0, 'rgba(240,255,250,0.2)');
+  ray.addColorStop(0.6, 'rgba(240,255,250,0.06)');
   ray.addColorStop(1, 'rgba(235,255,250,0)');
   return { canvas, g, caustics: tile ? g.createPattern(tile, 'repeat') : null, ray, frame: 0 };
 }
