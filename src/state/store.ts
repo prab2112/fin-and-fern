@@ -13,7 +13,11 @@ export interface Toast {
 }
 
 export type Sheet =
-  null | { kind: 'fish'; fishId: number } | { kind: 'settings' } | { kind: 'debug' };
+  | null
+  | { kind: 'fish'; fishId: number }
+  | { kind: 'settings' }
+  | { kind: 'debug' }
+  | { kind: 'gallery' };
 
 export interface Store {
   game: GameState;

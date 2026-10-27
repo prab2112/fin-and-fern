@@ -1,8 +1,9 @@
 import { content } from '../content';
-import { fishValue, isSick, phenotype } from '../sim/fish';
+import { fishValue, isSick } from '../sim/fish';
 import { stageOf } from '../sim/stage';
 import type { Fish, Tank } from '../sim/types';
-import { drawFish, type FishLook } from './fishDraw';
+import { drawFish } from './fishDraw';
+import { allPhenotypeFish, lookFor, SHAPES, type FishLook } from './fishLook';
 import { MAX_DRAWN, MotionPool } from './motion';
 
 /** Canvas 2D renderer for the open tank (GDD §14). Only this tank animates. */
@@ -21,21 +22,6 @@ const DPR_CAP = 2;
 const MAX_FLAKES = 24;
 const MAX_BUBBLES = 10;
 const STAGE_SCALE = { fry: 0.4, juvenile: 0.7, adult: 1 } as const;
-/** Body height / length per species (render shape only). */
-const ASPECT: Record<string, number> = {
-  guppy: 0.2,
-  platy: 0.27,
-  molly: 0.26,
-  swordtail: 0.22,
-  danio: 0.17,
-  neon: 0.18,
-  goldfish: 0.33,
-  betta: 0.22,
-  angel: 0.42,
-  discus: 0.46,
-  flowerhorn: 0.32,
-  arowana: 0.15,
-};
 
 const hash01 = (n: number) => {
   const s = Math.sin(n * 12.9898) * 43758.5453;
@@ -50,14 +36,10 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
   // ---- preallocated state ----
   const pool = new MotionPool();
   const slotId = new Int32Array(MAX_DRAWN);
-  const looks: FishLook[] = Array.from({ length: MAX_DRAWN }, () => ({
-    body: '#999999',
-    fin: '#999999',
-    eye: '#111111',
-    finScale: 1,
-    aspect: 0.2,
-    sick: false,
-  }));
+  const placeholder = lookFor(allPhenotypeFish()[0] as Fish);
+  const looks: FishLook[] = Array.from({ length: MAX_DRAWN }, () => placeholder);
+  /** Bit 0 sick, bit 1 pregnant, bit 2 set: the cached look is rebuilt only when these change. */
+  const lookState = new Uint8Array(MAX_DRAWN);
   const slotOf = new Map<number, number>();
 
   const flakeX = new Float32Array(MAX_FLAKES);
@@ -114,24 +96,23 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
 
   function fishLength(f: Fish): number {
     const size = content.speciesById[f.speciesId]?.size ?? 1;
-    const base = Math.min(34, Math.max(18, w * 0.075));
-    const sexScale = f.sex === 'F' ? 1.12 : 1;
+    const base = Math.min(30, Math.max(16, w * 0.065));
+    const sexScale = f.sex === 'F' ? (SHAPES[f.speciesId]?.femaleScale ?? 1) : 1;
     return base * Math.sqrt(size) * STAGE_SCALE[stageOf(f.ageH)] * sexScale;
   }
 
-  function updateLook(i: number, f: Fish) {
-    const look = looks[i] as FishLook;
-    const [colour, second] = phenotype(f);
-    look.body = colour?.body ?? '#999999';
-    look.fin = colour?.fin ?? '#999999';
-    look.eye = colour?.eye ?? '#15171a';
-    look.finScale = second?.finScale ?? 1;
-    look.aspect = ASPECT[f.speciesId] ?? 0.22;
-    look.sick = isSick(f);
+  function updateLook(i: number, f: Fish, fresh: boolean) {
+    const sick = isSick(f);
+    const state = 4 | (sick ? 1 : 0) | (f.pregnancy ? 2 : 0);
+    if (fresh || lookState[i] !== state) {
+      looks[i] = lookFor(f);
+      lookState[i] = state;
+    }
     pool.len[i] = fishLength(f);
     const hungry = f.hunger > content.balance.health.hungerProblemAbove;
-    pool.speedMul[i] = look.sick ? 0.45 : hungry ? 0.75 : 1;
-    pool.depthBias[i] = look.sick ? 0.85 : 0.25 + 0.45 * hash01(f.id);
+    const swim = SHAPES[f.speciesId]?.swim ?? 1;
+    pool.speedMul[i] = swim * (sick ? 0.45 : hungry ? 0.75 : 1);
+    pool.depthBias[i] = sick ? 0.85 : 0.25 + 0.45 * hash01(f.id);
   }
 
   function removeSlot(i: number) {
@@ -140,9 +121,8 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
     if (i !== lastIdx) {
       pool.copy(lastIdx, i);
       slotId[i] = slotId[lastIdx] as number;
-      const a = looks[i] as FishLook;
       looks[i] = looks[lastIdx] as FishLook;
-      looks[lastIdx] = a;
+      lookState[i] = lookState[lastIdx] as number;
       slotOf.set(slotId[i] as number, i);
     }
     pool.count--;
@@ -182,13 +162,14 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
     for (let i = pool.count - 1; i >= 0; i--) if (!keep.has(slotId[i] as number)) removeSlot(i);
     for (const f of shown) {
       let i = slotOf.get(f.id);
+      const fresh = i === undefined;
       if (i === undefined) {
         i = pool.count++;
         slotId[i] = f.id;
         slotOf.set(f.id, i);
         pool.spawn(i, w, h - floorH(), Math.random);
       }
-      updateLook(i, f);
+      updateLook(i, f, fresh);
     }
   }
 

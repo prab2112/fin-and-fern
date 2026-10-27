@@ -509,14 +509,14 @@
             "name": "Silver",
             "mult": 1,
             "body": "#cfd6da",
-            "fin": "#2b2f33"
+            "fin": "#c3ccd1"
           },
           {
             "id": "marble",
             "name": "Marble",
             "mult": 1.5,
             "body": "#e3e0d6",
-            "fin": "#3a3a3a"
+            "fin": "#9a9a96"
           },
           {
             "id": "platinum",

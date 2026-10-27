@@ -365,3 +365,23 @@ button {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
+
+/* ---- dev fish gallery ---- */
+.gallery-species h3 {
+  margin: 4px 0 6px;
+  font-size: 15px;
+  color: var(--muted);
+}
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+  gap: 8px;
+}
+.gallery-cell {
+  margin: 0;
+}
+.gallery-cell figcaption {
+  font-size: 12px;
+  color: var(--muted);
+  padding-top: 2px;
+}

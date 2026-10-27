@@ -1,3 +1,4 @@
+import { content } from '../content';
 import { newGame } from '../sim/newGame';
 import { Sheet } from './Sheet';
 import { useGame, useServices } from './storeContext';
@@ -58,6 +59,22 @@ export function DebugMenu() {
           onClick={() => setShowFps(!showFps)}
         >
           <span className="action-label">FPS overlay: {showFps ? 'on' : 'off'}</span>
+        </button>
+        <button
+          type="button"
+          className="action"
+          onClick={() => {
+            for (const sp of content.species)
+              dispatch({ type: 'debugSpawnFish', tankId, speciesId: sp.id, count: 1 });
+            close(null);
+          }}
+        >
+          <span className="action-label">Spawn 1 of each</span>
+          <span className="action-sub">12 species into {tankName}</span>
+        </button>
+        <button type="button" className="action" onClick={() => close({ kind: 'gallery' })}>
+          <span className="action-label">Fish gallery</span>
+          <span className="action-sub">every phenotype</span>
         </button>
         <button
           type="button"

@@ -477,9 +477,11 @@ Pearls are a soft currency earned only by playing.
 
 - Canvas 2D with `devicePixelRatio` capped at 2. Only the open tank animates; shop thumbnails redraw every 2 s.
 - **Procedural fish:**
-  - Body ellipse plus a tail shape from the tail/fin phenotype.
-  - Colours come from the species palette per phenotype.
+  - Each species has its own silhouette modelled on the real fish (body depth, tail type, dorsal/anal fins, extras such as angelfish filaments, arowana barbels and the flowerhorn hump).
+  - The locus-2 phenotype changes the shape (fancy/long fins, hi-fin, lyretail, fantail, halfmoon, balloon, Big Kok, snakeskin); the colour phenotype sets the colours and markings (stripes, spots, bars, calico/koi patches, pearl dots).
+  - Sex shows where the real species shows it: male guppies are small with big colourful tails and females larger and duller; male swordtails carry the sword; male bettas have long fins.
   - Albino: a pale body and red eye.
+  - A dev-only Fish gallery draws every phenotype, male and female.
 - **Motion:** wander steering with wall avoidance and light schooling for `school` species. Sick fish swim slower and lower.
 - **Plants:** procedural stems and leaves scaled by mass. Algae is a green overlay with `alpha = A / 150`.
 - **Budget:** 40 fish at 60 fps on a mid-range Android phone, with no per-frame allocations in the render loop.

@@ -1,4 +1,5 @@
 import { DebugMenu } from './DebugMenu';
+import { FishGallery } from './FishGallery';
 import { FishSheet } from './FishSheet';
 import { SettingsSheet } from './SettingsSheet';
 import { TankScreen } from './TankScreen';
@@ -18,6 +19,7 @@ export function App() {
       {sheet?.kind === 'fish' && <FishSheet fishId={sheet.fishId} />}
       {sheet?.kind === 'settings' && <SettingsSheet />}
       {sheet?.kind === 'debug' && import.meta.env.DEV && <DebugMenu />}
+      {sheet?.kind === 'gallery' && import.meta.env.DEV && <FishGallery />}
     </div>
   );
 }
