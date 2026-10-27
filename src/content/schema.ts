@@ -190,6 +190,7 @@ export const balanceFileSchema = z.object({
   plants: z.object({ coverLitresPerMass: positive }),
   alerts: z.object({ hungerAbove: nonNeg, wqBelow: nonNeg, hpBelow: nonNeg }),
   wholesale: z.object({ recessiveChancePerLocus: z.number().min(0).max(1) }),
+  value: z.object({ stageMult: z.object({ fry: nonNeg, juvenile: nonNeg, adult: nonNeg }) }),
 });
 
 export type Allele = z.infer<typeof alleleSchema>;

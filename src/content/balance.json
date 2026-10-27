@@ -1,9 +1,19 @@
 {
-  "time": { "simStepH": 0.1, "realSecondsPerGameHour": 10 },
-  "stages": { "juvenileAtH": 24, "adultAtH": 72 },
+  "time": {
+    "simStepH": 0.1,
+    "realSecondsPerGameHour": 10
+  },
+  "stages": {
+    "juvenileAtH": 24,
+    "adultAtH": 72
+  },
   "tank": {
     "litresPerCapacityUnit": 5,
-    "stageFactor": { "fry": 0.2, "juvenile": 0.5, "adult": 1 }
+    "stageFactor": {
+      "fry": 0.2,
+      "juvenile": 0.5,
+      "adult": 1
+    }
   },
   "water": {
     "loadCoef": 0.4,
@@ -22,7 +32,10 @@
     "tinUnits": 50,
     "tinPrice": 100
   },
-  "temperature": { "roomC": 25, "ratePerH": 1 },
+  "temperature": {
+    "roomC": 25,
+    "ratePerH": 1
+  },
   "health": {
     "hpMax": 100,
     "regenPerH": 1,
@@ -47,7 +60,22 @@
     "wqBelow": 50,
     "wqPenalty": 10
   },
-  "plants": { "coverLitresPerMass": 10 },
-  "alerts": { "hungerAbove": 60, "wqBelow": 50, "hpBelow": 40 },
-  "wholesale": { "recessiveChancePerLocus": 0.1 }
+  "plants": {
+    "coverLitresPerMass": 10
+  },
+  "alerts": {
+    "hungerAbove": 60,
+    "wqBelow": 50,
+    "hpBelow": 40
+  },
+  "wholesale": {
+    "recessiveChancePerLocus": 0.1
+  },
+  "value": {
+    "stageMult": {
+      "fry": 0,
+      "juvenile": 0.5,
+      "adult": 1
+    }
+  }
 }
