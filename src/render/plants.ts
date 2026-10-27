@@ -9,6 +9,7 @@ import { floorY, scaleAt, screenX, screenY, type View } from './projection';
  * tank always looks the same; leaves are drawn in unit space so two cached gradients serve all.
  */
 export const MAX_LEAVES = 16;
+const MAX_ROOTS = 9;
 
 export interface PlantView {
   plantId: string;
@@ -24,7 +25,10 @@ export interface PlantView {
   phase: Float32Array;
   attach: Float32Array;
   sori: Uint8Array;
+  /** 0 old outer leaf (shaded), 1 mature, 2 young inner leaf. */
   young: Uint8Array;
+  rootX: Float32Array;
+  rootLen: Float32Array;
   /** Driftwood under the rhizome (world px). */
   woodW: number;
   woodH: number;
@@ -71,6 +75,8 @@ export function layoutPlants(
       attach: new Float32Array(MAX_LEAVES),
       sori: new Uint8Array(MAX_LEAVES),
       young: new Uint8Array(MAX_LEAVES),
+      rootX: new Float32Array(MAX_ROOTS),
+      rootLen: new Float32Array(MAX_ROOTS),
       woodW: v.w * 0.24 * (0.85 + 0.3 * r()),
       woodH: v.h * 0.045,
       wood: null,
@@ -83,16 +89,29 @@ export function layoutPlants(
       spriteScale: 1,
       frame: i,
     };
-    for (let k = 0; k < leaves; k++) {
-      const a = (r() - 0.5) * 1.9;
-      pv.angle[k] = a;
-      pv.length[k] = v.h * (0.12 + 0.09 * r()) * Math.sqrt(pl.mass);
-      pv.width[k] = 0.15 + 0.07 * r();
-      pv.bend[k] = (r() - 0.5) * 0.35 + Math.sign(a) * 0.18;
+    // Spread the leaves across the fan, then draw the outermost (oldest, drooping) first and
+    // the inner young ones last, on top.
+    const angles = Array.from(
+      { length: leaves },
+      (_, k) => ((k + 0.5) / leaves - 0.5) * 1.6 + (r() - 0.5) * 0.25,
+    );
+    angles.sort((x, y) => Math.abs(y) - Math.abs(x));
+    angles.forEach((a, k) => {
+      const out = Math.min(1, Math.abs(a));
+      const young = out < 0.3;
+      pv.angle[k] = a * 0.95;
+      pv.length[k] = v.h * (0.2 + 0.1 * r()) * Math.sqrt(pl.mass) * (young ? 0.72 : 1);
+      pv.width[k] = (0.14 + 0.08 * r()) * (young ? 0.85 : 1);
+      // Outer leaves arch outward and droop at the tips.
+      pv.bend[k] = Math.sign(a) * (0.12 + 0.4 * out) + (r() - 0.5) * 0.12;
       pv.phase[k] = r() * TAU;
-      pv.attach[k] = r() - 0.5;
-      pv.sori[k] = r() < 0.35 ? 1 : 0;
-      pv.young[k] = r() < 0.3 ? 1 : 0;
+      pv.attach[k] = (r() - 0.5) * 0.9;
+      pv.sori[k] = !young && r() < 0.45 ? 1 : 0;
+      pv.young[k] = young ? 2 : out > 0.7 ? 0 : 1;
+    });
+    for (let k = 0; k < MAX_ROOTS; k++) {
+      pv.rootX[k] = (r() - 0.5) * 0.6;
+      pv.rootLen[k] = 0.4 + 0.6 * r();
     }
     return pv;
   });
@@ -165,11 +184,16 @@ export function buildWood(pv: PlantView, v: View, dpr: number, seed: number): vo
 }
 
 export interface LeafPaints {
+  shade: CanvasGradient;
   mature: CanvasGradient;
   young: CanvasGradient;
 }
 
 export function makeLeafPaints(ctx: CanvasRenderingContext2D): LeafPaints {
+  const shade = ctx.createLinearGradient(0, 0, 0, -1);
+  shade.addColorStop(0, '#163b1d');
+  shade.addColorStop(0.4, '#22552a');
+  shade.addColorStop(1, '#3f7a36');
   const mature = ctx.createLinearGradient(0, 0, 0, -1);
   mature.addColorStop(0, '#1d4a24');
   mature.addColorStop(0.35, '#2d6a31');
@@ -178,7 +202,7 @@ export function makeLeafPaints(ctx: CanvasRenderingContext2D): LeafPaints {
   young.addColorStop(0, '#2f6b30');
   young.addColorStop(0.4, '#4b8a3b');
   young.addColorStop(1, '#88c25f');
-  return { mature, young };
+  return { shade, mature, young };
 }
 
 /** Draws the plant with its base at (bx, by) in the current transform. */
@@ -196,32 +220,82 @@ function renderPlant(
   if (pv.wood) ctx.drawImage(pv.wood, bx - ww / 2, by - wh * 0.85, ww, wh);
   const rhizomeY = by - wh * 0.85 + wh * 0.4;
 
-  // Leaves, back row first so the front row overlaps them.
+  // Brown, hair-like roots gripping the wood.
+  ctx.strokeStyle = 'rgba(52,36,20,0.85)';
+  ctx.lineWidth = Math.max(0.6, 0.9 * p);
+  ctx.beginPath();
+  for (let k = 0; k < MAX_ROOTS; k++) {
+    const x = bx + (pv.rootX[k] as number) * ww;
+    const len = (pv.rootLen[k] as number) * wh * 0.6;
+    ctx.moveTo(x, rhizomeY + 1);
+    ctx.quadraticCurveTo(x + len * 0.4, rhizomeY + len * 0.6, x + len * 0.15, rhizomeY + len);
+  }
+  ctx.stroke();
+
+  // Leaves: outer (old, drooping, shaded) first, inner young leaves last on top.
   for (let k = 0; k < pv.leaves; k++) {
     const L = (pv.length[k] as number) * p;
     const a = pv.angle[k] as number;
     const ph = pv.phase[k] as number;
     const sway = Math.sin(t * 0.9 + ph) * 0.05 + Math.sin(t * 0.37 + ph * 1.3) * 0.035;
-    const bend = (pv.bend[k] as number) + Math.sin(t * 1.1 + ph) * 0.05;
+    const b = (pv.bend[k] as number) + Math.sin(t * 1.1 + ph) * 0.05;
     const wr = pv.width[k] as number;
+    const age = pv.young[k] as number;
     ctx.save();
     ctx.translate(bx + (pv.attach[k] as number) * ww * 0.5, rhizomeY);
     ctx.rotate(a + sway);
     ctx.scale(L, L);
-    ctx.fillStyle = pv.young[k] ? paints.young : paints.mature;
-    ctx.globalAlpha = 0.96;
+    ctx.fillStyle = age === 2 ? paints.young : age === 1 ? paints.mature : paints.shade;
+    ctx.globalAlpha = 0.95;
+    // Short stalk, then a lance-shaped blade, widest a third of the way up, slightly uneven.
     ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(-wr * 1.1 + bend * 0.15, -0.22, -wr * 0.95 + bend * 0.55, -0.62, bend, -1);
-    ctx.bezierCurveTo(wr * 0.95 + bend * 0.55, -0.62, wr * 1.1 + bend * 0.15, -0.22, 0, 0);
+    ctx.moveTo(-0.008, 0);
+    ctx.lineTo(b * 0.01 - 0.008, -0.1);
+    ctx.bezierCurveTo(
+      -wr * 0.9 + b * 0.1,
+      -0.2,
+      -wr * 1.05 + b * 0.3,
+      -0.42,
+      -wr * 0.75 + b * 0.5,
+      -0.62,
+    );
+    ctx.bezierCurveTo(-wr * 0.48 + b * 0.7, -0.78, -wr * 0.16 + b * 0.86, -0.92, b, -1);
+    ctx.bezierCurveTo(
+      wr * 0.14 + b * 0.86,
+      -0.9,
+      wr * 0.46 + b * 0.7,
+      -0.75,
+      wr * 0.8 + b * 0.5,
+      -0.58,
+    );
+    ctx.bezierCurveTo(wr * 1.08 + b * 0.3, -0.4, wr * 0.88 + b * 0.1, -0.2, b * 0.01 + 0.008, -0.1);
+    ctx.lineTo(0.008, 0);
+    ctx.closePath();
     ctx.fill();
     ctx.globalAlpha = 1;
-    ctx.strokeStyle = 'rgba(170,215,140,0.5)';
+    // Midrib and faint side veins.
+    ctx.strokeStyle = 'rgba(175,220,140,0.5)';
     ctx.lineWidth = 1.1 / L;
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.quadraticCurveTo(bend * 0.4, -0.5, bend, -1);
+    ctx.quadraticCurveTo(b * 0.4, -0.5, b, -1);
     ctx.stroke();
+    if (L > 18) {
+      ctx.strokeStyle = 'rgba(175,220,140,0.2)';
+      ctx.lineWidth = 0.8 / L;
+      ctx.beginPath();
+      for (let v = 1; v <= 5; v++) {
+        const y = -0.12 - v * 0.13;
+        const along = -y;
+        const mx = b * along * along;
+        const w = wr * 0.75 * (1 - Math.abs(along - 0.38) * 1.3);
+        ctx.moveTo(mx, y);
+        ctx.lineTo(mx - w, y - 0.07);
+        ctx.moveTo(mx, y);
+        ctx.lineTo(mx + w, y - 0.07);
+      }
+      ctx.stroke();
+    }
     if (pv.sori[k] && L > 14) {
       ctx.fillStyle = 'rgba(92,60,28,0.85)';
       for (let s = 0; s < 6; s++) {
@@ -229,8 +303,8 @@ function renderPlant(
         const along = -y;
         const off = wr * 0.42 * (1 - along * 0.6);
         ctx.beginPath();
-        ctx.arc(bend * along * along + off, y, 0.014, 0, TAU);
-        ctx.arc(bend * along * along - off, y, 0.014, 0, TAU);
+        ctx.arc(b * along * along + off, y, 0.01, 0, TAU);
+        ctx.arc(b * along * along - off, y, 0.01, 0, TAU);
         ctx.fill();
       }
     }
@@ -238,12 +312,18 @@ function renderPlant(
   }
 
   // Rhizome along the top of the wood, over the leaf bases.
-  ctx.strokeStyle = '#5a4a28';
-  ctx.lineWidth = Math.max(1.5, 3.2 * p);
   ctx.lineCap = 'round';
+  ctx.strokeStyle = '#3f3219';
+  ctx.lineWidth = Math.max(1.8, 4 * p);
   ctx.beginPath();
   ctx.moveTo(bx - ww * 0.3, rhizomeY + 1);
   ctx.quadraticCurveTo(bx, rhizomeY - 2 * p, bx + ww * 0.3, rhizomeY + 1);
+  ctx.stroke();
+  ctx.strokeStyle = '#6b5a33';
+  ctx.lineWidth = Math.max(0.8, 1.6 * p);
+  ctx.beginPath();
+  ctx.moveTo(bx - ww * 0.29, rhizomeY);
+  ctx.quadraticCurveTo(bx, rhizomeY - 2.6 * p, bx + ww * 0.29, rhizomeY);
   ctx.stroke();
   ctx.lineCap = 'butt';
 }
