@@ -17,6 +17,16 @@ export interface FoodFlake extends Flake {
   size: number;
   colour: string;
   timer: number;
+  wasAlive: boolean;
+}
+
+/** A small cloud of debris kicked up from the gravel. */
+interface Puff {
+  alive: boolean;
+  x: number;
+  y: number;
+  z: number;
+  age: number;
 }
 
 interface Bubble {
@@ -71,6 +81,8 @@ const MAX_BUBBLES = 48;
 const MAX_MOTES = 160;
 const MAX_RIPPLES = 16;
 const MAX_RINGS = 6;
+const MAX_PUFFS = 8;
+const PUFF_LIFE_S = 1.6;
 const FLAKE_COLOURS = ['#c8452f', '#e3a33b', '#8a5a2b', '#d9c37a', '#6f9a3c', '#b8322a'];
 const FLAKE_LIFE_ON_GRAVEL_S = 25;
 const TAU = Math.PI * 2;
@@ -81,6 +93,7 @@ export class Particles {
   private readonly motes: Mote[] = [];
   private readonly ripples: Ripple[] = [];
   private readonly rings: Ring[] = [];
+  private readonly puffs: Puff[] = [];
   private bubbleClock = 0;
   moteCount = 30;
   private readonly rand: () => number;
@@ -103,6 +116,7 @@ export class Particles {
         size: 2,
         colour: FLAKE_COLOURS[0] as string,
         timer: 0,
+        wasAlive: false,
       });
     for (let i = 0; i < MAX_BUBBLES; i++)
       this.bubbles.push({ alive: false, x: 0, y: 0, z: 0, r: 1, vy: 0, wobble: 0, inTube: true });
@@ -111,6 +125,7 @@ export class Particles {
     for (let i = 0; i < MAX_RIPPLES; i++)
       this.ripples.push({ alive: false, x: 0, z: 0, age: 0, max: 1 });
     for (let i = 0; i < MAX_RINGS; i++) this.rings.push({ alive: false, x: 0, y: 0, age: 0 });
+    for (let i = 0; i < MAX_PUFFS; i++) this.puffs.push({ alive: false, x: 0, y: 0, z: 0, age: 0 });
   }
 
   /** Scatters motes through the water (on resize). */
@@ -155,6 +170,7 @@ export class Particles {
       f.size = 1.4 + r() * 1.4;
       f.colour = FLAKE_COLOURS[Math.floor(r() * FLAKE_COLOURS.length)] as string;
       f.timer = 0.8 + 2.5 * r();
+      f.wasAlive = true;
       if (made % 4 === 1) this.ripple(f.x, f.z, 10 + r() * 8);
     }
   }
@@ -167,6 +183,19 @@ export class Particles {
         p.z = z;
         p.age = 0;
         p.max = max;
+        return;
+      }
+  }
+
+  /** A fish pecked the gravel: a little debris drifts up and settles. */
+  puff(x: number, y: number, z: number): void {
+    for (const p of this.puffs)
+      if (!p.alive) {
+        p.alive = true;
+        p.x = x;
+        p.y = y;
+        p.z = z;
+        p.age = 0;
         return;
       }
   }
@@ -187,6 +216,9 @@ export class Particles {
     const r = this.rand;
 
     for (const f of this.flakes) {
+      // A flake snapped up from the surface leaves a little ripple.
+      if (!f.alive && f.wasAlive && f.phase === 0) this.ripple(f.x, f.z, 5 + r() * 4);
+      f.wasAlive = f.alive;
       if (!f.alive) continue;
       if (f.phase === 0) {
         // Floating: drifts on the surface film, then soaks and sinks.
@@ -285,6 +317,11 @@ export class Particles {
       p.age += dt;
       if (p.age > 0.6) p.alive = false;
     }
+    for (const p of this.puffs) {
+      if (!p.alive) continue;
+      p.age += dt;
+      if (p.age > PUFF_LIFE_S) p.alive = false;
+    }
   }
 
   liveFlakes(): number {
@@ -362,6 +399,31 @@ export class Particles {
       ctx.beginPath();
       ctx.ellipse(screenX(v, p.x, p.z), screenY(v, v.surface, p.z), rad, rad * 0.25, 0, 0, TAU);
       ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  drawPuffs(ctx: CanvasRenderingContext2D, v: View): void {
+    ctx.fillStyle = '#8a7a60';
+    for (const p of this.puffs) {
+      if (!p.alive) continue;
+      const k = p.age / PUFF_LIFE_S;
+      const s = scaleAt(v, p.z);
+      const x = screenX(v, p.x, p.z);
+      const y = screenY(v, p.y, p.z);
+      ctx.globalAlpha = 0.5 * (1 - k);
+      // A few specks rising and spreading, then sinking back.
+      for (let i = 0; i < 5; i++) {
+        const a = i * 1.26;
+        const spread = (3 + 7 * k) * s;
+        const rise = (6 * Math.sin(Math.PI * k) + i * 0.6) * s;
+        ctx.fillRect(
+          x + Math.cos(a) * spread,
+          y - rise - Math.abs(Math.sin(a)) * spread * 0.3,
+          1.4 * s,
+          1.4 * s,
+        );
+      }
     }
     ctx.globalAlpha = 1;
   }

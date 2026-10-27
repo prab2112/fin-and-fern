@@ -484,6 +484,12 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
 
     particles.step(dt, view, b ? b.filter : null, dirt);
     swim.step(dt, view, particles.flakes);
+    for (let i = 0; i < swim.count; i++) {
+      const f = swim.fish[i];
+      if (!f?.pecked) continue;
+      f.pecked = false;
+      particles.puff(f.x + Math.cos(f.yaw) * f.len * 0.5, floorY(view, f.z) - 1, f.z);
+    }
 
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
@@ -519,6 +525,7 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
     }
 
     particles.drawFlakes(ctx, view);
+    particles.drawPuffs(ctx, view);
     if (renderFlags.motes && quality > 0) particles.drawMotes(ctx, view, false, dirt > 35);
 
     // Dirty water turns murky green-brown. Algae (M6) films the glass: alpha = A / 150.

@@ -42,6 +42,11 @@ export interface Swimmer {
   /** Fin display 0..1 (courting males flare their fins). */
   flare: number;
   display: boolean;
+  /** Begging: holding nose-to-glass, and how long to hold the current spot. */
+  noseIn: boolean;
+  hold: number;
+  /** Set when the fish pecks the gravel; the renderer clears it after drawing a puff. */
+  pecked: boolean;
   /** Body length in px at the front glass. */
   len: number;
   t: Temperament;
@@ -107,6 +112,9 @@ function blank(t: Temperament): Swimmer {
     mate: -1,
     flare: 0,
     display: false,
+    noseIn: false,
+    hold: 0,
+    pecked: false,
     len: 20,
     t,
     speedMul: 1,
@@ -188,6 +196,9 @@ export class Swimmers {
     f.mate = -1;
     f.flare = 0;
     f.display = false;
+    f.noseIn = false;
+    f.hold = 0;
+    f.pecked = false;
     f.len = len;
     f.t = t;
     f.speedMul = 1;
@@ -333,6 +344,8 @@ export class Swimmers {
     const was = f.mode;
     f.arrived = false;
     f.pitchHold = NaN;
+    f.noseIn = false;
+    f.hold = 0;
     let p = r();
     if (p < f.restP) {
       f.mode = MODE.rest;
@@ -415,7 +428,7 @@ export class Swimmers {
       f.tx = this.clampX(f, v, f.x + (r() - 0.5) * L * 8);
       f.tz = this.clampZ(f, v, f.z + (r() - 0.5) * L * 6);
       f.ty = floorY(v, f.tz) - L * 0.45;
-      f.timer = 3 + 3 * r();
+      f.timer = 6 + 4 * r();
       return;
     }
     f.mode = MODE.cruise;
@@ -516,12 +529,30 @@ export class Swimmers {
         f.arrived = true;
         if (f.mode === MODE.cruise) f.timer = Math.min(f.timer, 0);
       }
-      // Begging fish pace along the front glass; foraging fish peck at the gravel.
+      // Begging fish pace along the front glass, now and then holding nose-to-glass, facing
+      // the viewer. Foraging fish peck at the gravel.
       if (f.mode === MODE.beg && f.arrived && f.timer > 0) {
-        f.tx = this.clampX(f, v, f.x + (r() < 0.5 ? -1 : 1) * L * (2 + 3 * r()));
-        f.arrived = false;
+        f.hold -= dt;
+        if (f.hold <= 0) {
+          if (!f.noseIn && r() < 0.5) {
+            f.noseIn = true;
+            f.tx = f.x;
+            f.ty = f.y;
+            f.tz = L * 0.35;
+            f.hold = 1.5 + 1.5 * r();
+          } else {
+            f.noseIn = false;
+            f.tx = this.clampX(f, v, f.x + (r() < 0.5 ? -1 : 1) * L * (2 + 3 * r()));
+            f.tz = this.clampZ(f, v, L * (0.6 + r()));
+            f.hold = 0.8 + r();
+          }
+          f.arrived = false;
+        }
       }
-      if (f.mode === MODE.forage && f.arrived && r() < dt * 1.5) f.snap = 1;
+      if (f.mode === MODE.forage && floorY(v, f.z) - f.y < L * 1.2 && r() < dt * 1.5) {
+        f.snap = 1;
+        f.pecked = true;
+      }
       if (f.timer <= 0) this.choose(f, i, v);
     }
 
@@ -550,6 +581,12 @@ export class Swimmers {
         dx *= k;
         dy *= k;
         dz *= k;
+        // Nose to the glass: turn to face the viewer.
+        if (f.mode === MODE.beg && f.noseIn) {
+          dx = 0;
+          dy = 0;
+          dz = -0.6;
+        }
       }
     }
 
@@ -710,7 +747,13 @@ export class Swimmers {
         // Cruising fish stay fairly level; diving to food, the gravel or the surface is steeper,
         // and nimble species (high turn rate) can climb more steeply than big stiff ones.
         const agile = Math.min(0.6, 0.08 + 0.1 * t.turnRate);
-        const lim = f.mode === MODE.cruise || f.mode === MODE.hover ? Math.min(0.3, agile) : agile;
+        // Foraging and feeding fish tip nose-down to reach the gravel and the food.
+        const lim =
+          f.mode === MODE.cruise || f.mode === MODE.hover
+            ? Math.min(0.3, agile)
+            : f.mode === MODE.forage || f.mode === MODE.feed
+              ? Math.max(agile, 0.6)
+              : agile;
         wantPitch = clamp(Math.atan2(f.dy, Math.max(horiz, 1e-6)), -lim, lim);
       }
     }

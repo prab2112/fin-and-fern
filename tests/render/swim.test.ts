@@ -256,6 +256,40 @@ describe('swimmers', () => {
     expect(closest).toBeLessThan(f.len * 3);
   });
 
+  it('begging fish sometimes press their nose to the glass, facing the viewer', () => {
+    const { v, s } = school('molly', 3, 51);
+    for (let i = 0; i < s.count; i++) s.setEnv(i, 1, 0, 0.9, 0, 0);
+    let facing = 0;
+    const n = sample(s, v, 40, () => {
+      let k = 0;
+      for (let i = 0; i < s.count; i++) {
+        const f = s.fish[i];
+        // Heading into the glass (−z) and right up against it.
+        if (f && Math.sin(f.yaw) < -0.8 && f.z < f.len * 1.5) k++;
+      }
+      facing += k;
+      return k;
+    });
+    expect(n).toBeGreaterThan(0.2);
+    expect(facing).toBeGreaterThan(100);
+  });
+
+  it('foraging fish peck the gravel, and each peck is reported once', () => {
+    const { v, s } = school('goldfish', 3, 61);
+    let pecks = 0;
+    for (let k = 0; k < 90 / DT; k++) {
+      s.step(DT, v, NO_FOOD);
+      for (let i = 0; i < s.count; i++) {
+        const f = s.fish[i];
+        if (!f?.pecked) continue;
+        expect(floorY(v, f.z) - f.y).toBeLessThan(f.len * 1.2);
+        pecks++;
+        f.pecked = false;
+      }
+    }
+    expect(pecks).toBeGreaterThan(2);
+  });
+
   it('removing a fish keeps the others intact', () => {
     const { v, s } = school('guppy', 3, 1);
     const last = s.fish[2];
