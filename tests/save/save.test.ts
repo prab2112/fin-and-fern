@@ -12,7 +12,9 @@ import { loadNewest, writeSlot, SLOT_COUNT, type KeyValueStorage } from '../../s
 const played = (): GameState => {
   const rng = createRng(5);
   let s = newGame(5);
-  s = applyAction(s, { type: 'debugSpawnFish', tankId: 2, speciesId: 'guppy', count: 7 }, rng);
+  const tankB = s.tanks[1]?.id ?? -1;
+  s = applyAction(s, { type: 'debugSpawnFish', tankId: tankB, speciesId: 'guppy', count: 7 }, rng);
+  if (s.tanks[1]?.fish.length !== 7) throw new Error('spawn failed');
   s = tick(s, 30, rng);
   s = applyAction(s, { type: 'feed', tankId: 1 }, rng);
   return s;
@@ -51,7 +53,7 @@ describe('save round-trip (GDD §15)', () => {
     const a = tick(
       applyAction(
         s,
-        { type: 'debugSpawnFish', tankId: 2, speciesId: 'guppy', count: 3 },
+        { type: 'debugSpawnFish', tankId: s.tanks[1]?.id ?? -1, speciesId: 'guppy', count: 3 },
         createRng(0, s.rngState),
       ),
       5,
@@ -61,7 +63,7 @@ describe('save round-trip (GDD §15)', () => {
     const b = tick(
       applyAction(
         r,
-        { type: 'debugSpawnFish', tankId: 2, speciesId: 'guppy', count: 3 },
+        { type: 'debugSpawnFish', tankId: s.tanks[1]?.id ?? -1, speciesId: 'guppy', count: 3 },
         createRng(0, r.rngState),
       ),
       5,
