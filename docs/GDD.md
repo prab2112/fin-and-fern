@@ -106,7 +106,7 @@ Worked examples (unit tests):
   - +1 when there are no problems (max 100).
   - Otherwise −2 per problem; WQ < 25 counts as −5 instead of −2; Ich is −3.
   - Sensitive species (discus) take double damage. (tune)
-- A fish dies at HP ≤ 0. The body is removed, D rises by 2 × size, and a gentle toast is shown.
+- A fish dies at HP ≤ 0. The body is removed, D rises by 2 × size (species size × stageFactor, as in load), and a gentle toast is shown.
 - A fish is **sick** below 40 HP: it shows an icon and swims slowly. Selling a sick fish costs 3 rep.
 - Worked example: from a fresh feed with nothing else wrong, hunger passes 80 after 27 h. Then HP drops 2/h, so death comes after another 50 h: 77 game hours ≈ 12.8 real minutes at 1×.
 
