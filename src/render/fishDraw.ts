@@ -17,6 +17,26 @@ function rear(x: number, rx: number): number {
   return x < 0 ? x * rx : x;
 }
 
+/** Four rays from points along a fin's base (front → rear) to points along its edge (front → tip). */
+function fanRays(
+  ctx: CanvasRenderingContext2D,
+  bfx: number,
+  bfy: number,
+  brx: number,
+  bry: number,
+  efx: number,
+  efy: number,
+  tx: number,
+  ty: number,
+  rx: number,
+): void {
+  for (let i = 0; i < 4; i++) {
+    const t = (i + 0.5) / 4;
+    ctx.moveTo(rear(bfx + (brx - bfx) * t, rx), bfy + (bry - bfy) * t);
+    ctx.lineTo(rear(efx + (tx - efx) * t, rx), efy + (ty - efy) * t);
+  }
+}
+
 /** Where and how to draw one fish this frame (one mutable object per renderer). */
 export interface Pose {
   x: number;
@@ -129,6 +149,18 @@ function bakeBody(look: FishLook, pxPerUnit: number, gfx: FishGfx): void {
   bodyPath(g, s, hT, hB, 1);
   g.clip();
   drawPattern(g, look, hT, hB, 0.5);
+  // Faint scale rows catching the light (stronger patterns already draw their own).
+  if (look.pattern !== 'scales') {
+    g.strokeStyle = 'rgba(255,255,255,0.09)';
+    g.lineWidth = 0.8;
+    g.beginPath();
+    for (let y = -hT + 3; y < hB; y += 5)
+      for (let x = 30 - ((y * 0.5) % 5); x > -36; x -= 6) {
+        g.moveTo(x + 2.2, y - 2.4);
+        g.arc(x, y, 3.2, -0.85, 0.85);
+      }
+    g.stroke();
+  }
   g.strokeStyle = GILL;
   g.lineWidth = 1.6;
   g.beginPath();
@@ -162,7 +194,7 @@ export function makeGfx(
   const gfx: FishGfx = {
     body: countershade(ctx, look, s.hTop, s.hBot * look.bellyMul),
     tail,
-    fin: rgba(look.fin, 0.78),
+    fin: rgba(look.fin, 0.66),
     pec: rgba(look.fin, 0.55),
     sheen,
     sprite: null,
@@ -339,6 +371,7 @@ function drawFins(
   hB: number,
   wag: number,
   rx: number,
+  detail: boolean,
 ): void {
   const s = look.shape;
   const f = look.finMul;
@@ -456,6 +489,52 @@ function drawFins(
   }
   ctx.closePath();
   ctx.fill();
+
+  // Fin rays fanning from each fin's base to its edge (rear dorsals and fringes have none).
+  if (detail) {
+    ctx.strokeStyle = FIN_RAY;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    switch (look.dorsal) {
+      case 'small':
+        fanRays(ctx, 4, yt, -12, yt + 3, -1, yt - 7 * f, -14, yt - 8 * f, rx);
+        break;
+      case 'mid':
+        fanRays(ctx, 10, yt, -18, yt + 4, 3, yt - 9 * f, -16, yt - 12 * f, rx);
+        break;
+      case 'sail':
+        fanRays(ctx, 18, yt, -24, yt + 5, 10, yt - 16 * f, -20, yt - 22 * f, rx);
+        break;
+      case 'long':
+        fanRays(ctx, 6, yt, -34, -p, -6, yt - 10 * f, -44, yt - 6 * f, rx);
+        break;
+      case 'angel':
+        fanRays(ctx, 16, yt, -34, -p - 2, 6, yt - 26 * f, -34, yt - 52 * f, rx);
+        break;
+      case 'spiny':
+        fanRays(ctx, 26, yt + 2, -30, -p - 1, 10, yt - 8 * f, -30, yt - 9 * f, rx);
+        break;
+      case 'rear':
+      case 'fringe':
+        break;
+    }
+    switch (s.anal) {
+      case 'small':
+        fanRays(ctx, -6, yb, -20, yb - 2, -12, yb + 6 * f, -22, yb + 6 * f, rx);
+        break;
+      case 'long':
+        fanRays(ctx, 10, yb, -34, p, -4, yb + 12 * f, -42, yb + 8 * f, rx);
+        break;
+      case 'angel':
+        fanRays(ctx, 14, yb, -34, p + 2, 4, yb + 24 * f, -32, yb + 50 * f, rx);
+        break;
+      case 'rear':
+      case 'none':
+      case 'fringe':
+        break;
+    }
+    ctx.stroke();
+  }
 
   // Angelfish belly filaments.
   if (s.filaments) {
@@ -673,11 +752,28 @@ export function drawFish(
   ctx.globalAlpha = look.alpha;
 
   drawTail(ctx, look, gfx, pose, detail);
-  drawFins(ctx, look, gfx, hT, hB, wag, rx);
+  drawFins(ctx, look, gfx, hT, hB, wag, rx, detail);
 
   // Body, markings and outline: the baked sprite (or a plain countershaded body as a fallback).
-  if (gfx.sprite) ctx.drawImage(gfx.sprite, gfx.spriteX, gfx.spriteY, gfx.spriteW, gfx.spriteH);
-  else {
+  // Front and rear halves are drawn separately so the rear can flex with the tail.
+  if (gfx.sprite) {
+    const sp = gfx.sprite;
+    const k = sp.width / gfx.spriteW;
+    const rearW = -gfx.spriteX;
+    const frontW = gfx.spriteW - rearW;
+    ctx.drawImage(sp, rearW * k, 0, frontW * k, sp.height, 0, gfx.spriteY, frontW, gfx.spriteH);
+    ctx.drawImage(
+      sp,
+      0,
+      0,
+      rearW * k,
+      sp.height,
+      -rearW * rx,
+      gfx.spriteY,
+      rearW * rx,
+      gfx.spriteH,
+    );
+  } else {
     ctx.fillStyle = gfx.body;
     bodyPath(ctx, s, hT, hB, 1);
     ctx.fill();
@@ -727,17 +823,17 @@ export function drawFish(
   if (detail) {
     ctx.fillStyle = look.iris;
     ctx.beginPath();
-    ctx.arc(ex, ey, er * 1.3, 0, TAU);
+    ctx.arc(ex, ey, er * 1.15, 0, TAU);
     ctx.fill();
   }
   ctx.fillStyle = look.eye;
   ctx.beginPath();
-  ctx.arc(ex + 0.6, ey, er * (detail ? 0.85 : 1), 0, TAU);
+  ctx.arc(ex + 0.5, ey, er * (detail ? 0.78 : 0.95), 0, TAU);
   ctx.fill();
   if (detail) {
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(ex + 2, ey - 1.6, er * 0.3, 0, TAU);
+    ctx.arc(ex + 1.7, ey - 1.4, er * 0.24, 0, TAU);
     ctx.fill();
   }
 

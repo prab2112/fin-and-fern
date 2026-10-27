@@ -625,12 +625,12 @@ export class Swimmers {
     const gliding = f.want < f.speed * 0.8;
     const sNorm = f.speed / Math.max(1e-3, t.cruise * L);
     let amp = f.accel
-      ? 0.55
+      ? 0.6
       : gliding
-        ? 0.06
+        ? 0.07
         : f.speed < 0.25 * L
-          ? 0.12
-          : 0.22 + 0.12 * Math.min(1.5, sNorm);
+          ? 0.14
+          : 0.3 + 0.12 * Math.min(1.5, sNorm);
     if (f.mode === MODE.flee) amp = 0.7;
     f.tailAmp += (amp - f.tailAmp) * Math.min(1, dt * 7);
     const freq = Math.min(14, 1.1 + 1.4 * (f.speed / L) + (f.accel ? 2.5 : 0));
