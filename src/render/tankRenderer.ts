@@ -300,7 +300,8 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
       updateCover();
       return;
     }
-    if (tank.id !== tankId) {
+    const freshTank = tank.id !== tankId;
+    if (freshTank) {
       while (swim.count > 0) swim.removeAt(swim.count - 1);
       slotOf.clear();
       particles.clearFood();
@@ -361,6 +362,11 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
           f.sex === 'M',
         );
         if (i < 0) continue;
+        // Fish that arrive while the tank is open are let out of their bag at the surface.
+        if (!freshTank) {
+          swim.release(i, view);
+          particles.ripple(swim.fish[i]?.x ?? 0, swim.fish[i]?.z ?? 0, 16);
+        }
         slotId[i] = f.id;
         slotOf.set(f.id, i);
         lookKey[i] = -1;

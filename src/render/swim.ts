@@ -230,6 +230,26 @@ export class Swimmers {
     return i;
   }
 
+  /** A newly bought fish is let out of its bag at the surface and swims down into the tank. */
+  release(i: number, v: View): void {
+    const f = this.fish[i];
+    if (!f) return;
+    const r = this.rand;
+    const L = f.len;
+    f.x = v.w * (0.35 + 0.3 * r());
+    f.z = v.depth * (0.2 + 0.25 * r());
+    f.y = v.surface + L * 0.3;
+    f.pitch = 0.4;
+    f.speed = f.t.cruise * L;
+    f.mode = MODE.cruise;
+    f.arrived = false;
+    f.tx = this.clampX(f, v, f.x + (r() - 0.5) * v.w * 0.5);
+    f.tz = this.clampZ(f, v, f.z + r() * v.depth * 0.3);
+    const top = v.surface + L * 0.5;
+    f.ty = top + (floorY(v, f.tz) - top) * (0.35 + 0.3 * r());
+    f.timer = 5 + 3 * r();
+  }
+
   /** Removes slot i by moving the last swimmer into it (callers mirror the same move). */
   removeAt(i: number, _v?: View): void {
     const last = this.count - 1;

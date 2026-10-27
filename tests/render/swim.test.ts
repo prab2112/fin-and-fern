@@ -290,6 +290,17 @@ describe('swimmers', () => {
     expect(pecks).toBeGreaterThan(2);
   });
 
+  it('released fish enter at the surface and swim down into the tank', () => {
+    const { v, s } = school('guppy', 1, 71);
+    const f = s.fish[0];
+    if (!f) throw new Error('no fish');
+    s.release(0, v);
+    expect(f.y).toBeLessThan(v.surface + f.len);
+    const startY = f.y;
+    for (let k = 0; k < 4 / DT; k++) s.step(DT, v, NO_FOOD);
+    expect(f.y).toBeGreaterThan(startY + f.len);
+  });
+
   it('removing a fish keeps the others intact', () => {
     const { v, s } = school('guppy', 3, 1);
     const last = s.fish[2];
