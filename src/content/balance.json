@@ -1,0 +1,53 @@
+{
+  "time": { "simStepH": 0.1, "realSecondsPerGameHour": 10 },
+  "stages": { "juvenileAtH": 24, "adultAtH": 72 },
+  "tank": {
+    "litresPerCapacityUnit": 5,
+    "stageFactor": { "fry": 0.2, "juvenile": 0.5, "adult": 1 }
+  },
+  "water": {
+    "loadCoef": 0.4,
+    "plantCoef": 0.1,
+    "refVolumeL": 40,
+    "waterChangeFactor": 0.5,
+    "waterChangeCooldownH": 1,
+    "deathDirtPerSize": 2
+  },
+  "food": {
+    "hungerPerH": 3,
+    "hungerMax": 100,
+    "loadPerFoodUnit": 4,
+    "overfeedMeanHungerBelow": 20,
+    "overfeedDirt": 5,
+    "tinUnits": 50,
+    "tinPrice": 100
+  },
+  "temperature": { "roomC": 25, "ratePerH": 1 },
+  "health": {
+    "hpMax": 100,
+    "regenPerH": 1,
+    "problemDamagePerH": 2,
+    "hungerProblemAbove": 80,
+    "wqProblemBelow": 50,
+    "wqSevereBelow": 25,
+    "wqSevereDamagePerH": 5,
+    "ichDamagePerH": 3,
+    "sensitiveMult": 2,
+    "sickBelowHp": 40
+  },
+  "happiness": {
+    "base": 70,
+    "coverThreshold": 0.3,
+    "coverBonus": 15,
+    "decorEach": 5,
+    "decorMax": 3,
+    "overloadPenalty": 100,
+    "schoolPenalty": 20,
+    "conflictPenalty": 30,
+    "wqBelow": 50,
+    "wqPenalty": 10
+  },
+  "plants": { "coverLitresPerMass": 10 },
+  "alerts": { "hungerAbove": 60, "wqBelow": 50, "hpBelow": 40 },
+  "wholesale": { "recessiveChancePerLocus": 0.1 }
+}

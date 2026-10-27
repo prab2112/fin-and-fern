@@ -1,0 +1,56 @@
+[
+  {
+    "id": "javafern",
+    "name": "Java Fern",
+    "lightNeed": 1,
+    "growthPerH": 0.01,
+    "coverMult": 1,
+    "price": 50,
+    "unlockLevel": 1
+  },
+  {
+    "id": "anubias",
+    "name": "Anubias",
+    "lightNeed": 1,
+    "growthPerH": 0.008,
+    "coverMult": 1,
+    "price": 80,
+    "unlockLevel": 1
+  },
+  {
+    "id": "moss",
+    "name": "Java Moss",
+    "lightNeed": 1,
+    "growthPerH": 0.02,
+    "coverMult": 2,
+    "price": 40,
+    "unlockLevel": 2
+  },
+  {
+    "id": "val",
+    "name": "Vallisneria",
+    "lightNeed": 2,
+    "growthPerH": 0.03,
+    "coverMult": 1,
+    "price": 60,
+    "unlockLevel": 3
+  },
+  {
+    "id": "rotala",
+    "name": "Rotala",
+    "lightNeed": 3,
+    "growthPerH": 0.04,
+    "coverMult": 1,
+    "price": 90,
+    "unlockLevel": 5
+  },
+  {
+    "id": "lotus",
+    "name": "Red Tiger Lotus",
+    "lightNeed": 2,
+    "growthPerH": 0.025,
+    "coverMult": 1,
+    "price": 200,
+    "unlockLevel": 6
+  }
+]

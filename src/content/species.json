@@ -1,0 +1,714 @@
+[
+  {
+    "id": "guppy",
+    "name": "Guppy",
+    "kind": "livebearer",
+    "size": 1,
+    "tempMin": 22,
+    "tempMax": 28,
+    "basePrice": 30,
+    "unlockLevel": 1,
+    "sources": ["wholesale"],
+    "traits": {},
+    "loci": [
+      {
+        "id": "colour",
+        "name": "Colour",
+        "alleles": [
+          {
+            "id": "wild",
+            "name": "Wild",
+            "mult": 1,
+            "body": "#9aa070",
+            "fin": "#e0823c"
+          },
+          {
+            "id": "blue",
+            "name": "Blue",
+            "mult": 1.5,
+            "body": "#4f86d4",
+            "fin": "#2b5cb5"
+          },
+          {
+            "id": "albino",
+            "name": "Albino",
+            "mult": 4,
+            "body": "#f7e6d6",
+            "fin": "#f2c4a2",
+            "eye": "#d22f3c"
+          }
+        ]
+      },
+      {
+        "id": "tail",
+        "name": "Tail",
+        "alleles": [
+          {
+            "id": "normal",
+            "name": "Normal",
+            "mult": 1,
+            "finScale": 1
+          },
+          {
+            "id": "fancy",
+            "name": "Fancy",
+            "mult": 2,
+            "finScale": 1.9
+          }
+        ]
+      }
+    ],
+    "careFacts": []
+  },
+  {
+    "id": "danio",
+    "name": "Zebra Danio",
+    "kind": "egg-layer",
+    "size": 1,
+    "tempMin": 18,
+    "tempMax": 26,
+    "basePrice": 25,
+    "unlockLevel": 1,
+    "sources": ["wholesale"],
+    "traits": {
+      "school": 6
+    },
+    "loci": [
+      {
+        "id": "colour",
+        "name": "Colour",
+        "alleles": [
+          {
+            "id": "wild",
+            "name": "Wild",
+            "mult": 1,
+            "body": "#c9cfd6",
+            "fin": "#3d5a8a"
+          },
+          {
+            "id": "golden",
+            "name": "Golden",
+            "mult": 1.5,
+            "body": "#e8c766",
+            "fin": "#c9a23c"
+          },
+          {
+            "id": "albino",
+            "name": "Albino",
+            "mult": 3,
+            "body": "#f5ece0",
+            "fin": "#efd9c4",
+            "eye": "#d22f3c"
+          }
+        ]
+      },
+      {
+        "id": "fin",
+        "name": "Fin",
+        "alleles": [
+          {
+            "id": "short",
+            "name": "Short",
+            "mult": 1,
+            "finScale": 1
+          },
+          {
+            "id": "longfin",
+            "name": "Longfin",
+            "mult": 1.8,
+            "finScale": 1.7
+          }
+        ]
+      }
+    ],
+    "careFacts": []
+  },
+  {
+    "id": "platy",
+    "name": "Platy",
+    "kind": "livebearer",
+    "size": 1,
+    "tempMin": 20,
+    "tempMax": 26,
+    "basePrice": 40,
+    "unlockLevel": 2,
+    "sources": ["wholesale"],
+    "traits": {},
+    "loci": [
+      {
+        "id": "colour",
+        "name": "Colour",
+        "alleles": [
+          {
+            "id": "wild",
+            "name": "Wild",
+            "mult": 1,
+            "body": "#a7a37a",
+            "fin": "#8c7c4a"
+          },
+          {
+            "id": "red",
+            "name": "Red",
+            "mult": 1.3,
+            "body": "#e0473a",
+            "fin": "#c23628"
+          },
+          {
+            "id": "blue",
+            "name": "Blue",
+            "mult": 2.5,
+            "body": "#5d8fdc",
+            "fin": "#3c6cc0"
+          }
+        ]
+      },
+      {
+        "id": "fin",
+        "name": "Fin",
+        "alleles": [
+          {
+            "id": "normal",
+            "name": "Normal",
+            "mult": 1,
+            "finScale": 1
+          },
+          {
+            "id": "hifin",
+            "name": "Hi-fin",
+            "mult": 1.8,
+            "finScale": 1.6
+          }
+        ]
+      }
+    ],
+    "careFacts": []
+  },
+  {
+    "id": "neon",
+    "name": "Neon Tetra",
+    "kind": "egg-layer",
+    "size": 0.5,
+    "tempMin": 22,
+    "tempMax": 26,
+    "basePrice": 35,
+    "unlockLevel": 2,
+    "sources": ["wholesale", "Brazil"],
+    "traits": {
+      "school": 6
+    },
+    "loci": [
+      {
+        "id": "colour",
+        "name": "Colour",
+        "alleles": [
+          {
+            "id": "neon",
+            "name": "Neon",
+            "mult": 1,
+            "body": "#2fb3e6",
+            "fin": "#d8343e"
+          },
+          {
+            "id": "diamond",
+            "name": "Diamond",
+            "mult": 2,
+            "body": "#bfe6f5",
+            "fin": "#9fd2ea"
+          },
+          {
+            "id": "albino",
+            "name": "Albino",
+            "mult": 3,
+            "body": "#f5ece6",
+            "fin": "#f0b8bc",
+            "eye": "#d22f3c"
+          }
+        ]
+      },
+      {
+        "id": "fin",
+        "name": "Fin",
+        "alleles": [
+          {
+            "id": "short",
+            "name": "Short",
+            "mult": 1,
+            "finScale": 1
+          },
+          {
+            "id": "longfin",
+            "name": "Longfin",
+            "mult": 2,
+            "finScale": 1.7
+          }
+        ]
+      }
+    ],
+    "careFacts": []
+  },
+  {
+    "id": "molly",
+    "name": "Molly",
+    "kind": "livebearer",
+    "size": 1.5,
+    "tempMin": 24,
+    "tempMax": 28,
+    "basePrice": 60,
+    "unlockLevel": 2,
+    "sources": ["wholesale"],
+    "traits": {},
+    "loci": [
+      {
+        "id": "colour",
+        "name": "Colour",
+        "alleles": [
+          {
+            "id": "black",
+            "name": "Black",
+            "mult": 1,
+            "body": "#22252b",
+            "fin": "#1a1c21"
+          },
+          {
+            "id": "dalmatian",
+            "name": "Dalmatian",
+            "mult": 1.5,
+            "body": "#e9e9e4",
+            "fin": "#2b2d33"
+          },
+          {
+            "id": "gold",
+            "name": "Gold",
+            "mult": 3,
+            "body": "#f0b93c",
+            "fin": "#e09a24"
+          }
+        ]
+      },
+      {
+        "id": "body",
+        "name": "Body",
+        "alleles": [
+          {
+            "id": "normal",
+            "name": "Normal",
+            "mult": 1,
+            "finScale": 1
+          },
+          {
+            "id": "balloon",
+            "name": "Balloon",
+            "mult": 1.8,
+            "finScale": 1
+          }
+        ]
+      }
+    ],
+    "careFacts": []
+  },
+  {
+    "id": "swordtail",
+    "name": "Swordtail",
+    "kind": "livebearer",
+    "size": 1.5,
+    "tempMin": 22,
+    "tempMax": 28,
+    "basePrice": 70,
+    "unlockLevel": 3,
+    "sources": ["wholesale"],
+    "traits": {},
+    "loci": [
+      {
+        "id": "colour",
+        "name": "Colour",
+        "alleles": [
+          {
+            "id": "green",
+            "name": "Green",
+            "mult": 1,
+            "body": "#7fa45a",
+            "fin": "#2f4f2a"
+          },
+          {
+            "id": "red",
+            "name": "Red",
+            "mult": 1.3,
+            "body": "#d9412f",
+            "fin": "#a8281c"
+          },
+          {
+            "id": "pineapple",
+            "name": "Pineapple",
+            "mult": 2.5,
+            "body": "#f2b347",
+            "fin": "#d9542c"
+          }
+        ]
+      },
+      {
+        "id": "fin",
+        "name": "Fin",
+        "alleles": [
+          {
+            "id": "normal",
+            "name": "Normal",
+            "mult": 1,
+            "finScale": 1
+          },
+          {
+            "id": "lyretail",
+            "name": "Lyretail",
+            "mult": 2,
+            "finScale": 1.6
+          }
+        ]
+      }
+    ],
+    "careFacts": []
+  },
+  {
+    "id": "goldfish",
+    "name": "Goldfish",
+    "kind": "egg-layer",
+    "size": 3,
+    "tempMin": 18,
+    "tempMax": 25,
+    "basePrice": 80,
+    "unlockLevel": 3,
+    "sources": ["wholesale"],
+    "traits": {},
+    "loci": [
+      {
+        "id": "colour",
+        "name": "Colour",
+        "alleles": [
+          {
+            "id": "orange",
+            "name": "Orange",
+            "mult": 1,
+            "body": "#f08a24",
+            "fin": "#f5a347"
+          },
+          {
+            "id": "calico",
+            "name": "Calico",
+            "mult": 1.6,
+            "body": "#e9d6c4",
+            "fin": "#f08a24"
+          },
+          {
+            "id": "black",
+            "name": "Black",
+            "mult": 2.5,
+            "body": "#202228",
+            "fin": "#2c2f36"
+          }
+        ]
+      },
+      {
+        "id": "tail",
+        "name": "Tail",
+        "alleles": [
+          {
+            "id": "single",
+            "name": "Single",
+            "mult": 1,
+            "finScale": 1
+          },
+          {
+            "id": "fantail",
+            "name": "Fantail",
+            "mult": 2,
+            "finScale": 1.8
+          }
+        ]
+      }
+    ],
+    "careFacts": []
+  },
+  {
+    "id": "betta",
+    "name": "Betta",
+    "kind": "egg-layer",
+    "size": 1,
+    "tempMin": 24,
+    "tempMax": 30,
+    "basePrice": 250,
+    "unlockLevel": 4,
+    "sources": ["Thailand"],
+    "traits": {
+      "territorialMales": true
+    },
+    "loci": [
+      {
+        "id": "colour",
+        "name": "Colour",
+        "alleles": [
+          {
+            "id": "red",
+            "name": "Red",
+            "mult": 1,
+            "body": "#c8202c",
+            "fin": "#a3121e"
+          },
+          {
+            "id": "blue",
+            "name": "Blue",
+            "mult": 1.3,
+            "body": "#2856c2",
+            "fin": "#1c3f99"
+          },
+          {
+            "id": "koi",
+            "name": "Koi",
+            "mult": 4,
+            "body": "#f3ece4",
+            "fin": "#e2582e"
+          }
+        ]
+      },
+      {
+        "id": "tail",
+        "name": "Tail",
+        "alleles": [
+          {
+            "id": "veil",
+            "name": "Veil",
+            "mult": 1,
+            "finScale": 1.6
+          },
+          {
+            "id": "halfmoon",
+            "name": "Halfmoon",
+            "mult": 2.5,
+            "finScale": 2.2
+          }
+        ]
+      }
+    ],
+    "careFacts": []
+  },
+  {
+    "id": "angel",
+    "name": "Angelfish",
+    "kind": "egg-layer",
+    "size": 3,
+    "tempMin": 24,
+    "tempMax": 30,
+    "basePrice": 400,
+    "unlockLevel": 5,
+    "sources": ["Singapore"],
+    "traits": {},
+    "loci": [
+      {
+        "id": "colour",
+        "name": "Colour",
+        "alleles": [
+          {
+            "id": "silver",
+            "name": "Silver",
+            "mult": 1,
+            "body": "#cfd6da",
+            "fin": "#2b2f33"
+          },
+          {
+            "id": "marble",
+            "name": "Marble",
+            "mult": 1.5,
+            "body": "#e3e0d6",
+            "fin": "#3a3a3a"
+          },
+          {
+            "id": "platinum",
+            "name": "Platinum",
+            "mult": 4,
+            "body": "#f4f6f7",
+            "fin": "#e6ebee"
+          }
+        ]
+      },
+      {
+        "id": "fin",
+        "name": "Fin",
+        "alleles": [
+          {
+            "id": "normal",
+            "name": "Normal",
+            "mult": 1,
+            "finScale": 1
+          },
+          {
+            "id": "veil",
+            "name": "Veil",
+            "mult": 1.8,
+            "finScale": 1.6
+          }
+        ]
+      }
+    ],
+    "careFacts": []
+  },
+  {
+    "id": "discus",
+    "name": "Discus",
+    "kind": "egg-layer",
+    "size": 4,
+    "tempMin": 28,
+    "tempMax": 31,
+    "basePrice": 1500,
+    "unlockLevel": 6,
+    "sources": ["Singapore", "Brazil"],
+    "traits": {
+      "sensitive": true
+    },
+    "loci": [
+      {
+        "id": "colour",
+        "name": "Colour",
+        "alleles": [
+          {
+            "id": "brown",
+            "name": "Brown",
+            "mult": 1,
+            "body": "#9c6a3c",
+            "fin": "#7d4f2a"
+          },
+          {
+            "id": "bluediamond",
+            "name": "Blue Diamond",
+            "mult": 2,
+            "body": "#4fa3d9",
+            "fin": "#2c7fb8"
+          },
+          {
+            "id": "albinored",
+            "name": "Albino Red",
+            "mult": 4,
+            "body": "#f1d6c8",
+            "fin": "#e0533c",
+            "eye": "#d22f3c"
+          }
+        ]
+      },
+      {
+        "id": "pattern",
+        "name": "Pattern",
+        "alleles": [
+          {
+            "id": "plain",
+            "name": "Plain",
+            "mult": 1,
+            "finScale": 1
+          },
+          {
+            "id": "snakeskin",
+            "name": "Snakeskin",
+            "mult": 2,
+            "finScale": 1
+          }
+        ]
+      }
+    ],
+    "careFacts": []
+  },
+  {
+    "id": "flowerhorn",
+    "name": "Flowerhorn",
+    "kind": "egg-layer",
+    "size": 6,
+    "tempMin": 26,
+    "tempMax": 30,
+    "basePrice": 3000,
+    "unlockLevel": 8,
+    "sources": ["Thailand"],
+    "traits": {
+      "solitary": true
+    },
+    "loci": [
+      {
+        "id": "colour",
+        "name": "Colour",
+        "alleles": [
+          {
+            "id": "classic",
+            "name": "Classic",
+            "mult": 1,
+            "body": "#b8574a",
+            "fin": "#7d3d34"
+          },
+          {
+            "id": "golden",
+            "name": "Golden",
+            "mult": 1.5,
+            "body": "#e8b23c",
+            "fin": "#c48a24"
+          },
+          {
+            "id": "pearl",
+            "name": "Pearl",
+            "mult": 4,
+            "body": "#ece7df",
+            "fin": "#c9b9a8"
+          }
+        ]
+      },
+      {
+        "id": "head",
+        "name": "Head",
+        "alleles": [
+          {
+            "id": "small",
+            "name": "Small",
+            "mult": 1,
+            "finScale": 1
+          },
+          {
+            "id": "bigkok",
+            "name": "Big Kok",
+            "mult": 2.5,
+            "finScale": 1
+          }
+        ]
+      }
+    ],
+    "careFacts": []
+  },
+  {
+    "id": "arowana",
+    "name": "Silver Arowana",
+    "kind": "import-only",
+    "size": 10,
+    "tempMin": 24,
+    "tempMax": 30,
+    "basePrice": 8000,
+    "unlockLevel": 10,
+    "sources": ["Brazil"],
+    "traits": {
+      "minTankL": 300,
+      "noBreeding": true
+    },
+    "loci": [
+      {
+        "id": "variant",
+        "name": "Variant",
+        "alleles": [
+          {
+            "id": "silver",
+            "name": "Silver",
+            "mult": 1,
+            "body": "#d8dde0",
+            "fin": "#aab3b8"
+          },
+          {
+            "id": "black",
+            "name": "Black",
+            "mult": 1.6,
+            "body": "#2a2d33",
+            "fin": "#1d1f24"
+          }
+        ]
+      }
+    ],
+    "careFacts": []
+  }
+]

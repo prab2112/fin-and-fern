@@ -1,0 +1,55 @@
+{
+  "money": 1000,
+  "rep": 0,
+  "level": 1,
+  "food": 50,
+  "fish": { "hp": 100, "hunger": 20, "ageH": 72 },
+  "tanks": [
+    {
+      "name": "Tank A",
+      "tankType": "t40",
+      "filterLevel": 1,
+      "heaterLevel": 0,
+      "lightLevel": 1,
+      "plants": [
+        { "plantId": "javafern", "mass": 1 },
+        { "plantId": "javafern", "mass": 1 }
+      ],
+      "fish": [
+        {
+          "speciesId": "guppy",
+          "sex": "F",
+          "genes": { "locus1": ["wild", "albino"], "locus2": ["normal", "fancy"] },
+          "pregnancy": {
+            "sireGenes": { "locus1": ["wild", "albino"], "locus2": ["normal", "normal"] },
+            "dueAtH": 30
+          }
+        },
+        {
+          "speciesId": "guppy",
+          "sex": "F",
+          "genes": { "locus1": ["wild", "wild"], "locus2": ["normal", "normal"] }
+        },
+        {
+          "speciesId": "guppy",
+          "sex": "M",
+          "genes": { "locus1": ["wild", "blue"], "locus2": ["normal", "normal"] }
+        },
+        {
+          "speciesId": "guppy",
+          "sex": "M",
+          "genes": { "locus1": ["wild", "wild"], "locus2": ["normal", "normal"] }
+        }
+      ]
+    },
+    {
+      "name": "Tank B",
+      "tankType": "t40",
+      "filterLevel": 1,
+      "heaterLevel": 0,
+      "lightLevel": 1,
+      "plants": [],
+      "fish": []
+    }
+  ]
+}

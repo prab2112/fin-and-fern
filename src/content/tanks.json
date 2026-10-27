@@ -1,0 +1,5 @@
+[
+  { "id": "t40", "name": "Tank 40 L", "volumeL": 40, "price": 400, "unlockLevel": 1 },
+  { "id": "t100", "name": "Tank 100 L", "volumeL": 100, "price": 1500, "unlockLevel": 3 },
+  { "id": "t300", "name": "Showroom tank 300 L", "volumeL": 300, "price": 8000, "unlockLevel": 10 }
+]
