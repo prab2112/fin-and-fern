@@ -40,6 +40,22 @@ export function DebugMenu() {
         <button
           type="button"
           className="action"
+          onClick={() => dispatch({ type: 'debugAddDirt', tankId, amount: 30 })}
+        >
+          <span className="action-label">Dirty water +30</span>
+          <span className="action-sub">watch them gasp</span>
+        </button>
+        <button
+          type="button"
+          className="action"
+          onClick={() => dispatch({ type: 'debugSickFish', tankId, hp: 30 })}
+        >
+          <span className="action-label">Make a fish sick</span>
+          <span className="action-sub">HP 30 in {tankName}</span>
+        </button>
+        <button
+          type="button"
+          className="action"
           onClick={() => dispatch({ type: 'debugAddFood', units: 50 })}
         >
           <span className="action-label">+50 food</span>

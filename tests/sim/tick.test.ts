@@ -195,4 +195,27 @@ describe('debug actions', () => {
   it('adds food', () => {
     expect(applyAction(newGame(1), { type: 'debugAddFood', units: 50 }, rng()).food).toBe(100);
   });
+
+  it('dirties the water, clamped at 100', () => {
+    const s0 = withTankA(newGame(1), { dirt: 80 });
+    expect(
+      tankA(applyAction(s0, { type: 'debugAddDirt', tankId: 1, amount: 30 }, rng())).dirt,
+    ).toBe(100);
+    expect(
+      tankA(applyAction(newGame(1), { type: 'debugAddDirt', tankId: 1, amount: 30 }, rng())).dirt,
+    ).toBe(30);
+  });
+
+  it('makes the first fish in a tank sick', () => {
+    const s = applyAction(newGame(1), { type: 'debugSickFish', tankId: 1, hp: 30 }, rng());
+    expect(tankA(s).fish[0]?.hp).toBe(30);
+    expect(tankA(s).fish[1]?.hp).toBe(100);
+    expect(
+      applyAction(
+        newGame(1),
+        { type: 'debugSickFish', tankId: tankB(newGame(1)).id, hp: 30 },
+        rng(),
+      ).events[0],
+    ).toMatchObject({ reason: 'empty' });
+  });
 });

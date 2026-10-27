@@ -13,7 +13,9 @@ export type Action =
   // Debug menu (dev builds only).
   | { type: 'debugSpawnFish'; tankId: number; speciesId: string; count: number }
   | { type: 'debugAdvanceHours'; hours: number }
-  | { type: 'debugAddFood'; units: number };
+  | { type: 'debugAddFood'; units: number }
+  | { type: 'debugAddDirt'; tankId: number; amount: number }
+  | { type: 'debugSickFish'; tankId: number; hp: number };
 
 const reject = (state: GameState, action: Action, reason: string): GameState => ({
   ...state,
@@ -106,5 +108,19 @@ export function applyAction(state: GameState, action: Action, rng: Rng): GameSta
 
     case 'debugAddFood':
       return { ...state, food: state.food + action.units, events: [] };
+
+    case 'debugAddDirt': {
+      const tank = findTank(action.tankId);
+      if (!tank) return reject(state, action, 'noTank');
+      return replaceTank(state, { ...tank, dirt: Math.min(100, tank.dirt + action.amount) });
+    }
+
+    case 'debugSickFish': {
+      const tank = findTank(action.tankId);
+      if (!tank) return reject(state, action, 'noTank');
+      const [first, ...rest] = tank.fish;
+      if (!first) return reject(state, action, 'empty');
+      return replaceTank(state, { ...tank, fish: [{ ...first, hp: action.hp }, ...rest] });
+    }
   }
 }
