@@ -1,6 +1,6 @@
 import { content } from './content';
 import { stageOf } from './stage';
-import { capacity, cover, tankLoad, wq } from './water';
+import { capacity, cover, tankLoad, tankVolume, wq } from './water';
 import type { Allele } from '../content/schema';
 import type { Fish, Tank } from './types';
 
@@ -109,10 +109,6 @@ export function hasConflict(fish: readonly Fish[]): boolean {
     if (t?.solitary) solitary = true;
   }
   return territorialMales > 1 || (solitary && fish.length > 1);
-}
-
-export function tankVolume(tank: Tank): number {
-  return content.tankTypeById[tank.tankType]?.volumeL ?? 0;
 }
 
 /** H for a tank (recomputed on demand, never stored). */

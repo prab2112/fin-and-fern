@@ -69,7 +69,8 @@
     "hpBelow": 40
   },
   "wholesale": {
-    "recessiveChancePerLocus": 0.1
+    "recessiveChancePerLocus": 0.1,
+    "femaleChance": 0.5
   },
   "value": {
     "stageMult": {

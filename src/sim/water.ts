@@ -1,8 +1,12 @@
 import { content } from './content';
 import { stageFactor } from './stage';
-import type { Fish, PlantInstance } from './types';
+import type { Fish, PlantInstance, Tank } from './types';
 
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
+
+export function tankVolume(tank: Tank): number {
+  return content.tankTypeById[tank.tankType]?.volumeL ?? 0;
+}
 
 /** GDD §3: capacity = V / 5 size units. */
 export function capacity(volumeL: number): number {
