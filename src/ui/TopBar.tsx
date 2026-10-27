@@ -1,9 +1,18 @@
+import type { ReactNode } from 'react';
 import type { Speed } from '../sim/types';
 import { dayClock, rupees } from './format';
 import { useGame } from './storeContext';
 
-const SPEEDS: { speed: Speed; label: string; aria: string }[] = [
-  { speed: 0, label: '⏸', aria: 'Pause' },
+// Drawn as SVG: the ⏸ glyph is missing from many Android fonts.
+const PauseIcon = () => (
+  <svg width="14" height="16" viewBox="0 0 14 16" aria-hidden="true">
+    <rect x="1" y="1" width="4" height="14" rx="1" fill="currentColor" />
+    <rect x="9" y="1" width="4" height="14" rx="1" fill="currentColor" />
+  </svg>
+);
+
+const SPEEDS: { speed: Speed; label: ReactNode; aria: string }[] = [
+  { speed: 0, label: <PauseIcon />, aria: 'Pause' },
   { speed: 1, label: '1×', aria: 'Normal speed' },
   { speed: 2, label: '2×', aria: 'Double speed' },
 ];

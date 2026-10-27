@@ -1,5 +1,5 @@
 import { content } from '../content';
-import { heaterMaxC, wq } from '../sim/water';
+import { wq } from '../sim/water';
 import type { Tank } from '../sim/types';
 
 interface MeterProps {
@@ -33,7 +33,6 @@ export function Meters({ tank }: { tank: Tank }) {
   const n = tank.fish.length;
   const hunger = n === 0 ? 0 : tank.fish.reduce((s, f) => s + f.hunger, 0) / n;
   const quality = wq(tank.dirt);
-  const heater = heaterMaxC(tank.heaterLevel);
   return (
     <div className="meters">
       <Meter
@@ -57,7 +56,7 @@ export function Meters({ tank }: { tank: Tank }) {
         }
       />
       <Meter
-        label={heater === null ? 'Temp · no heater' : 'Temp'}
+        label="Temp"
         value={`${tank.tempC.toFixed(1)}°`}
         fill={(tank.tempC - 15) / 20}
         tone="good"
