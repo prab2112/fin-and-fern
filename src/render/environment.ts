@@ -9,9 +9,9 @@ import { floorY, scaleAt, screenX, screenY, type View } from './projection';
  * background layer. A front layer holds the light falloff, vignette, glass reflections and rims.
  * Caustics, light shafts and the surface shimmer animate each frame from cached objects.
  */
+/** The tank's background layer (per tank: its gravel is seeded by the tank) plus box geometry. */
 export interface Backdrop {
   bg: HTMLCanvasElement;
-  front: HTMLCanvasElement;
   /** Screen geometry of the box. */
   backL: number;
   backR: number;
@@ -327,9 +327,21 @@ export function buildBackdrop(v: View, dpr: number, seed: number): Backdrop {
   g.quadraticCurveTo(sx + tw * 2.5, tTop - (tTop - v.surface) * 0.5, sx + tw * 1.5, 0);
   g.stroke();
 
-  // ---------------- front overlay
+  return {
+    bg,
+    backL,
+    backR,
+    backSurf,
+    backFloor,
+    filter: { x: fx, z: fz, yStart: baseY - spongeH, yTubeTop: tubeTop, tubeR },
+  };
+}
+
+/** Light falloff, vignette, glass reflections and rims: the same for every tank. */
+export function buildFrontOverlay(v: View, dpr: number): HTMLCanvasElement {
+  const { w, h } = v;
   const [front, f] = layer(v, dpr);
-  grad = f.createLinearGradient(0, h * 0.35, 0, h);
+  const grad = f.createLinearGradient(0, h * 0.35, 0, h);
   grad.addColorStop(0, 'rgba(0,12,16,0)');
   grad.addColorStop(1, 'rgba(0,12,16,0.22)');
   f.fillStyle = grad;
@@ -358,15 +370,7 @@ export function buildBackdrop(v: View, dpr: number, seed: number): Backdrop {
   f.fillStyle = 'rgba(255,255,255,0.08)';
   f.fillRect(0, 4, w, 1);
 
-  return {
-    bg,
-    front,
-    backL,
-    backR,
-    backSurf,
-    backFloor,
-    filter: { x: fx, z: fz, yStart: baseY - spongeH, yTubeTop: tubeTop, tubeR },
-  };
+  return front;
 }
 
 /**

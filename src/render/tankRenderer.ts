@@ -5,6 +5,7 @@ import type { Fish, Tank } from '../sim/types';
 import { wq as waterQuality } from '../sim/water';
 import {
   buildBackdrop,
+  buildFrontOverlay,
   drawLight,
   drawSurface,
   makeLightLayer,
@@ -60,6 +61,7 @@ const PLANT_BASE = 1000;
 const BUBBLES_ITEM = 2000;
 const STAGE_SCALE = { fry: 0.4, juvenile: 0.7, adult: 1 } as const;
 const HAZE_LEVELS = [0.66, 0.33];
+const BACKDROP_CACHE = 3;
 
 /**
  * Adaptive quality: the renderer watches its own frame rate and steps down when a device can't
@@ -111,6 +113,9 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
   /** Signature of the plants last laid out; null forces a new layout. */
   let plantSig: string | null = null;
   let backdrop: Backdrop | null = null;
+  /** Recent tanks' backdrops, so switching back and forth doesn't rebuild the gravel. */
+  const backdropCache = new Map<number, Backdrop>();
+  let front: HTMLCanvasElement | null = null;
   let lightLayer: LightLayer | null = null;
   let tankId = -1;
   let dirt = 0;
@@ -170,8 +175,28 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
     );
   }
 
+  /** The current tank's backdrop, from the cache when it was built recently. */
+  function useBackdrop() {
+    const cached = backdropCache.get(tankId);
+    if (cached) {
+      backdropCache.delete(tankId);
+      backdropCache.set(tankId, cached);
+      backdrop = cached;
+    } else {
+      backdrop = buildBackdrop(view, dpr, 9001 + Math.max(0, tankId));
+      backdropCache.set(tankId, backdrop);
+      if (backdropCache.size > BACKDROP_CACHE) {
+        const oldest = backdropCache.keys().next().value;
+        if (oldest !== undefined) backdropCache.delete(oldest);
+      }
+    }
+  }
+
+  /** On resize: everything sized to the canvas is rebuilt. */
   function rebuildStatic() {
-    backdrop = buildBackdrop(view, dpr, 9001 + Math.max(0, tankId));
+    backdropCache.clear();
+    useBackdrop();
+    front = buildFrontOverlay(view, dpr);
     lightLayer = makeLightLayer(view);
     plants.forEach((pv, i) => {
       buildWood(pv, view, dpr, tankId * 31 + i);
@@ -281,7 +306,7 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
       particles.clearFood();
       tankId = tank.id;
       plantSig = null;
-      rebuildStatic();
+      useBackdrop();
     }
     dirt = tank.dirt;
     algae = tank.algae;
@@ -540,7 +565,7 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
       ctx.fillRect(0, 0, view.w, view.h);
     }
     ctx.globalAlpha = 1;
-    if (b && renderFlags.overlay) ctx.drawImage(b.front, 0, 0, view.w, view.h);
+    if (front && renderFlags.overlay) ctx.drawImage(front, 0, 0, view.w, view.h);
     particles.drawRings(ctx);
     drawSickBadges();
 
