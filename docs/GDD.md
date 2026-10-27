@@ -482,9 +482,17 @@ Pearls are a soft currency earned only by playing.
   - Sex shows where the real species shows it: male guppies are small with big colourful tails and females larger and duller; male swordtails carry the sword; male bettas have long fins.
   - Albino: a pale body and red eye.
   - A dev-only Fish gallery draws every phenotype, male and female.
-- **Motion:** wander steering with wall avoidance and light schooling for `school` species. Sick fish swim slower and lower.
-- **Plants:** procedural stems and leaves scaled by mass. Algae is a green overlay with `alpha = A / 150`.
-- **Budget:** 40 fish at 60 fps on a mid-range Android phone, with no per-frame allocations in the render loop.
+- **The tank is a 3D box** seen through the front glass, in perspective: the gravel floor (sloping up toward the back) and its cross-section at the glass, the underside of the water surface, side glass, a sponge filter with a bubble stream, caustic light on the gravel, light shafts, drifting particles, and depth haze. Fish further back are smaller and hazier, and cast faint shadows on the gravel.
+- **Motion:** each fish has a 3D heading that turns at its species' turn rate, so it swings through facing the viewer instead of flipping. Per-species temperament sets the preferred depth band, cruise and burst speed, hovering, burst-and-glide swimming (danio, neon, guppy), schooling (danio and neon tight, guppy and others loose), foraging on the gravel and surface visits (betta, arowana). Separation and soft walls keep fish apart and inside the tank. The tail sweeps out of the screen plane (foreshortened in side view) and beats faster when accelerating; pectoral fins scull when hovering; the mouth and gills breathe.
+- **Fish react to the sim** (pillar 1), in the renderer only (the sim is unchanged):
+  - Food: flakes float, then sink and settle; each fish chases the nearest flake and snaps it up. Bellies look rounder after a meal and pinched when starving.
+  - Hunger > 60: fish come to the front glass and pace along it (begging).
+  - WQ < 50: fish gasp at the surface and breathe faster; more particles and a murky tint.
+  - Outside the species' temperature range: sluggish when cold (resting low), faster breathing and more surface time when hot.
+  - Sick (HP < 40): paler, clamped fins, slow, resting near the bottom, with the sick icon.
+  - A tap on the glass that misses every fish startles nearby fish into a burst away.
+- **Plants:** Java Fern grows on driftwood: lance-shaped leaves on a rhizome, with midribs and spore dots, swaying in the current and scaled by mass. Algae is a green overlay with `alpha = A / 150`.
+- **Budget:** 40 fish at 60 fps on a mid-range Android phone, with no per-frame allocations in the render loop. Fish bodies are baked into sprites when their look changes; caustics and light shafts render into a half-resolution layer every few frames; plants are cached sprites. **Adaptive quality** steps down (less frequent light and plant refresh, less haze, fine detail only on larger fish; at the lowest level no moving light, motes or shadows) when a device can't hold 48 fps, and back up after 10 s of smooth frames.
 - **Safeguard:** if a tank holds more than 60 fish, draw the 60 most valuable and show a "+N" badge.
 
 ---

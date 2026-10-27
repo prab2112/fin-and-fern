@@ -2,334 +2,544 @@ import { content } from '../content';
 import { fishValue, isSick } from '../sim/fish';
 import { stageOf } from '../sim/stage';
 import type { Fish, Tank } from '../sim/types';
-import { drawFish } from './fishDraw';
+import { wq as waterQuality } from '../sim/water';
+import {
+  buildBackdrop,
+  drawLight,
+  drawSurface,
+  makeLightLayer,
+  type Backdrop,
+  type LightLayer,
+} from './environment';
+import { BODY_UNITS, drawFish, makeGfx, makePose, makeSheen, type FishGfx } from './fishDraw';
 import { allPhenotypeFish, lookFor, SHAPES, type FishLook } from './fishLook';
-import { MAX_DRAWN, MotionPool } from './motion';
+import { Particles } from './particles';
+import {
+  buildPlantSprite,
+  buildWood,
+  drawPlant,
+  layoutPlants,
+  makeLeafPaints,
+  type PlantView,
+} from './plants';
+import { floorY, makeView, resizeView, scaleAt, screenX, screenY } from './projection';
+import { MAX_SWIMMERS, Swimmers } from './swim';
+import { DEFAULT_TEMPERAMENT, TEMPERAMENT } from './temperament';
 
 /** Canvas 2D renderer for the open tank (GDD §14). Only this tank animates. */
 export interface TankRenderer {
-  /** Syncs the drawn fish/plants with the sim. Called on store updates, not per frame. */
+  /** Syncs fish, plants and water with the sim. Called on store updates, not per frame. */
   setTank(tank: Tank | null): void;
-  /** Scatters food flakes; fish swim to them. */
+  /** Sprinkles food; the fish come up to eat it. */
   dropFood(): void;
-  /** Returns the id of the fish under a point in CSS px, or null. */
+  /** A tap on the glass that missed every fish: nearby fish startle. */
+  poke(x: number, y: number): void;
+  /** Id of the fish under a point in CSS px, or null. */
   hitTest(x: number, y: number): number | null;
   setShowFps(on: boolean): void;
+  stats(): { fps: number; ms: number; fish: number; quality: number };
   dispose(): void;
 }
 
-const DPR_CAP = 2;
-const MAX_FLAKES = 24;
-const MAX_BUBBLES = 10;
-const STAGE_SCALE = { fry: 0.4, juvenile: 0.7, adult: 1 } as const;
-
-const hash01 = (n: number) => {
-  const s = Math.sin(n * 12.9898) * 43758.5453;
-  return s - Math.floor(s);
+/** Layer switches for profiling in dev builds (window.__finfernFlags). Always on in production. */
+export const renderFlags = {
+  light: true,
+  haze: true,
+  murk: true,
+  shadows: true,
+  plants: true,
+  motes: true,
+  detail: true,
+  overlay: true,
 };
+
+const DPR_CAP = 2;
+const MAX_PLANTS = 16;
+const MAX_ITEMS = MAX_SWIMMERS + MAX_PLANTS + 1;
+const PLANT_BASE = 1000;
+const BUBBLES_ITEM = 2000;
+const STAGE_SCALE = { fry: 0.4, juvenile: 0.7, adult: 1 } as const;
+const HAZE_LEVELS = [0.66, 0.33];
+
+/**
+ * Adaptive quality: the renderer watches its own frame rate and steps down when a device can't
+ * keep up (light and plants refresh less often, less haze, fine detail only on larger fish; at the
+ * lowest level no moving light, motes or shadows), then tries stepping back up after a stretch of
+ * smooth frames.
+ */
+const QUALITY_MAX = 2;
+const REFRESH_EVERY = [12, 6, 3];
+const DETAIL_MIN_PX = [26, 18, 13];
+const QUALITY_WINDOW_MS = 2000;
+const QUALITY_DOWN_FPS = 48;
+const QUALITY_UP_FPS = 58;
+const QUALITY_UP_AFTER_MS = 10_000;
+const QUALITY_UP_BACKOFF_MS = 60_000;
+const HAZE = '#0f4651';
 
 export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
   const ctxOrNull = canvas.getContext('2d', { alpha: false });
   if (!ctxOrNull) throw new Error('Canvas 2D is not available');
   const ctx: CanvasRenderingContext2D = ctxOrNull;
 
-  // ---- preallocated state ----
-  const pool = new MotionPool();
-  const slotId = new Int32Array(MAX_DRAWN);
+  const view = makeView();
+  const swim = new Swimmers(Math.random, DEFAULT_TEMPERAMENT);
+  const particles = new Particles();
+  const pose = makePose();
+  const sheen = makeSheen(ctx);
+  const leafPaints = makeLeafPaints(ctx);
+
+  // Per-slot data, parallel to swim.fish (the same slot index everywhere).
+  const slotId = new Int32Array(MAX_SWIMMERS);
   const placeholder = lookFor(allPhenotypeFish()[0] as Fish);
-  const looks: FishLook[] = Array.from({ length: MAX_DRAWN }, () => placeholder);
-  /** Bit 0 sick, bit 1 pregnant, bit 2 set: the cached look is rebuilt only when these change. */
-  const lookState = new Uint8Array(MAX_DRAWN);
+  const looks: FishLook[] = Array.from({ length: MAX_SWIMMERS }, () => placeholder);
+  const placeholderGfx = makeGfx(ctx, placeholder, sheen, 0.5);
+  const gfx: FishGfx[] = Array.from({ length: MAX_SWIMMERS }, () => placeholderGfx);
+  /** What the cached look was built from: rebuilt only when this changes. */
+  const lookKey = new Int32Array(MAX_SWIMMERS);
+  const scrX = new Float32Array(MAX_SWIMMERS);
+  const scrY = new Float32Array(MAX_SWIMMERS);
+  const scrL = new Float32Array(MAX_SWIMMERS);
   const slotOf = new Map<number, number>();
+  const keep = new Set<number>();
 
-  const flakeX = new Float32Array(MAX_FLAKES);
-  const flakeY = new Float32Array(MAX_FLAKES);
-  const flakeVy = new Float32Array(MAX_FLAKES);
-  const flakeAge = new Float32Array(MAX_FLAKES).fill(-1);
+  // Depth sorting of everything that can overlap: fish, plants, the bubble column.
+  const order = new Int32Array(MAX_ITEMS);
+  const keys = new Float32Array(MAX_ITEMS);
 
-  const bubbleX = new Float32Array(MAX_BUBBLES);
-  const bubbleY = new Float32Array(MAX_BUBBLES);
-  const bubbleR = new Float32Array(MAX_BUBBLES);
-
-  const plantMass = new Float32Array(16);
-  let plantCount = 0;
-
+  let plants: PlantView[] = [];
+  /** Signature of the plants last laid out; null forces a new layout. */
+  let plantSig: string | null = null;
+  let backdrop: Backdrop | null = null;
+  let lightLayer: LightLayer | null = null;
   let tankId = -1;
   let dirt = 0;
   let algae = 0;
-  let hiddenCount = 0;
+  let light = 1;
   let hiddenLabel = '';
-  let w = 1;
-  let h = 1;
-  let water: CanvasGradient | null = null;
+  let dpr = 1;
   let showFps = false;
   let fpsText = '';
   let frames = 0;
+  let drawMsSum = 0;
+  let lastFps = 0;
+  let lastMs = 0;
   let fpsT0 = performance.now();
   let last = performance.now();
   let raf = 0;
   let disposed = false;
+  let quality = QUALITY_MAX;
+  let qT0 = performance.now();
+  let qFrames = 0;
+  let smoothMs = 0;
+  let steppedUpAt = -Infinity;
+  let upBlockedUntil = 0;
 
-  const floorH = () => Math.max(18, h * 0.08);
+  function adaptQuality(now: number) {
+    qFrames++;
+    const span = now - qT0;
+    if (span < QUALITY_WINDOW_MS) return;
+    const fps = (qFrames * 1000) / span;
+    if (fps < QUALITY_DOWN_FPS && quality > 0) {
+      // A step up that didn't hold: don't retry for a while.
+      if (now - steppedUpAt < QUALITY_WINDOW_MS * 3) upBlockedUntil = now + QUALITY_UP_BACKOFF_MS;
+      quality--;
+      smoothMs = 0;
+    } else if (fps >= QUALITY_UP_FPS) {
+      smoothMs += span;
+      if (smoothMs >= QUALITY_UP_AFTER_MS && quality < QUALITY_MAX && now >= upBlockedUntil) {
+        quality++;
+        steppedUpAt = now;
+        smoothMs = 0;
+      }
+    } else smoothMs = 0;
+    qFrames = 0;
+    qT0 = now;
+  }
+
+  function rebuildStatic() {
+    backdrop = buildBackdrop(view, dpr, 9001 + Math.max(0, tankId));
+    lightLayer = makeLightLayer(view);
+    plants.forEach((pv, i) => {
+      buildWood(pv, view, dpr, tankId * 31 + i);
+      buildPlantSprite(pv, view, dpr);
+    });
+  }
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
-    const dpr = Math.min(DPR_CAP, window.devicePixelRatio || 1);
-    w = Math.max(1, rect.width);
-    h = Math.max(1, rect.height);
+    const w = Math.max(1, rect.width);
+    const h = Math.max(1, rect.height);
+    const oldW = view.w;
+    const oldH = view.h;
+    dpr = Math.min(DPR_CAP, window.devicePixelRatio || 1);
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    water = ctx.createLinearGradient(0, 0, 0, h);
-    water.addColorStop(0, '#2a7f8f');
-    water.addColorStop(1, '#0f3d4a');
-    for (let i = 0; i < MAX_BUBBLES; i++) {
-      bubbleX[i] = w * 0.9 + Math.random() * 8;
-      bubbleY[i] = Math.random() * h;
-      bubbleR[i] = 1.5 + Math.random() * 2.5;
+    resizeView(view, w, h);
+    // Keep fish where they were, proportionally.
+    for (let i = 0; i < swim.count; i++) {
+      const f = swim.fish[i];
+      if (!f) continue;
+      f.x *= w / oldW;
+      f.y *= h / oldH;
+      f.z *= w / oldW;
     }
-    for (let i = 0; i < pool.count; i++) {
-      pool.x[i] = Math.min(w - 4, pool.x[i] as number);
-      pool.y[i] = Math.min(h - floorH() - 4, pool.y[i] as number);
-    }
+    particles.seedMotes(view);
+    lookKey.fill(-1);
+    plantSig = null;
+    rebuildStatic();
   }
 
   function fishLength(f: Fish): number {
     const size = content.speciesById[f.speciesId]?.size ?? 1;
-    const base = Math.min(30, Math.max(16, w * 0.065));
+    const base = Math.min(40, Math.max(20, view.w * 0.085));
     const sexScale = f.sex === 'F' ? (SHAPES[f.speciesId]?.femaleScale ?? 1) : 1;
     return base * Math.sqrt(size) * STAGE_SCALE[stageOf(f.ageH)] * sexScale;
   }
 
-  function updateLook(i: number, f: Fish, fresh: boolean) {
+  /** How the fish reacts to its tank: speed, gasping, begging, resting, breathing. */
+  function applyEnv(i: number, f: Fish, tank: Tank) {
+    const sp = content.speciesById[f.speciesId];
+    const wq = waterQuality(tank.dirt);
+    const cold = sp ? tank.tempC < sp.tempMin : false;
+    const hot = sp ? tank.tempC > sp.tempMax : false;
     const sick = isSick(f);
-    const state = 4 | (sick ? 1 : 0) | (f.pregnancy ? 2 : 0);
-    if (fresh || lookState[i] !== state) {
-      looks[i] = lookFor(f);
-      lookState[i] = state;
-    }
-    pool.len[i] = fishLength(f);
-    const hungry = f.hunger > content.balance.health.hungerProblemAbove;
-    const swim = SHAPES[f.speciesId]?.swim ?? 1;
-    pool.speedMul[i] = swim * (sick ? 0.45 : hungry ? 0.75 : 1);
-    pool.depthBias[i] = sick ? 0.85 : 0.25 + 0.45 * hash01(f.id);
+    const starving = f.hunger > content.balance.health.hungerProblemAbove;
+    const hungry = f.hunger > content.balance.alerts.hungerAbove;
+    let speedMul = 1;
+    if (sick) speedMul *= 0.45;
+    if (cold) speedMul *= 0.6;
+    if (starving) speedMul *= 0.8;
+    if (hot) speedMul *= 1.1;
+    if (wq < content.balance.health.wqSevereBelow) speedMul *= 0.75;
+    let gaspP =
+      wq < content.balance.health.wqSevereBelow
+        ? 0.7
+        : wq < content.balance.health.wqProblemBelow
+          ? 0.3
+          : 0;
+    if (hot) gaspP += 0.25;
+    const begP = sick ? 0 : starving ? 0.25 : hungry ? 0.45 : 0.03;
+    const restP = sick ? 0.85 : starving ? 0.2 : cold ? 0.35 : 0;
+    const sum = gaspP + begP + restP;
+    const k = sum > 0.95 ? 0.95 / sum : 1;
+    const stress = Math.min(
+      1,
+      Math.max(wq < 50 ? (50 - wq) / 50 + 0.3 : 0, hot ? 0.6 : 0, sick ? 0.5 : 0),
+    );
+    swim.setEnv(i, speedMul, gaspP * k, begP * k, restP * k, stress);
   }
 
-  function removeSlot(i: number) {
-    const lastIdx = pool.count - 1;
-    slotOf.delete(slotId[i] as number);
-    if (i !== lastIdx) {
-      pool.copy(lastIdx, i);
-      slotId[i] = slotId[lastIdx] as number;
-      looks[i] = looks[lastIdx] as FishLook;
-      lookState[i] = lookState[lastIdx] as number;
-      slotOf.set(slotId[i] as number, i);
-    }
-    pool.count--;
+  function lookKeyOf(f: Fish): number {
+    const hungerBand =
+      f.hunger < 15 ? 0 : f.hunger > content.balance.health.hungerProblemAbove ? 2 : 1;
+    const stage = stageOf(f.ageH);
+    return (
+      (isSick(f) ? 1 : 0) |
+      (f.pregnancy ? 2 : 0) |
+      (hungerBand << 2) |
+      ((stage === 'fry' ? 0 : stage === 'juvenile' ? 1 : 2) << 4) |
+      (1 << 8)
+    );
+  }
+
+  function moveSlot(from: number, to: number) {
+    slotId[to] = slotId[from] as number;
+    looks[to] = looks[from] as FishLook;
+    gfx[to] = gfx[from] as FishGfx;
+    lookKey[to] = lookKey[from] as number;
+    slotOf.set(slotId[to] as number, to);
   }
 
   function setTank(tank: Tank | null) {
     if (!tank) {
-      pool.count = 0;
+      while (swim.count > 0) swim.removeAt(swim.count - 1);
       slotOf.clear();
-      plantCount = 0;
+      plants = [];
+      plantSig = null;
       tankId = -1;
       return;
     }
     if (tank.id !== tankId) {
-      pool.count = 0;
+      while (swim.count > 0) swim.removeAt(swim.count - 1);
       slotOf.clear();
-      flakeAge.fill(-1);
+      particles.clearFood();
       tankId = tank.id;
+      plantSig = null;
+      rebuildStatic();
     }
     dirt = tank.dirt;
     algae = tank.algae;
-    plantCount = Math.min(plantMass.length, tank.plants.length);
-    for (let i = 0; i < plantCount; i++) plantMass[i] = tank.plants[i]?.mass ?? 1;
+    light =
+      (tank.lightLevel <= 1 ? 0.85 : tank.lightLevel === 2 ? 1 : 1.12) *
+      Math.max(0.25, 1 - dirt / 130);
+
+    // Plants: re-lay out only when they change.
+    let sig = '';
+    for (const p of tank.plants) sig += `${p.plantId}:${p.mass.toFixed(2)};`;
+    if (sig !== plantSig) {
+      plantSig = sig;
+      plants = layoutPlants(tank.plants.slice(0, MAX_PLANTS), tank.id, view);
+      plants.forEach((pv, i) => {
+        buildWood(pv, view, dpr, tank.id * 31 + i);
+        buildPlantSprite(pv, view, dpr);
+      });
+    }
 
     // GDD §14 safeguard: draw the 60 most valuable fish and show "+N".
     let shown: readonly Fish[] = tank.fish;
-    if (tank.fish.length > MAX_DRAWN) {
+    if (tank.fish.length > MAX_SWIMMERS) {
       const price = (f: Fish) => content.speciesById[f.speciesId]?.basePrice ?? 0;
       shown = [...tank.fish]
         .sort((a, b) => fishValue(b, price(b)) - fishValue(a, price(a)))
-        .slice(0, MAX_DRAWN);
+        .slice(0, MAX_SWIMMERS);
     }
-    hiddenCount = tank.fish.length - shown.length;
-    hiddenLabel = hiddenCount > 0 ? `+${hiddenCount}` : '';
+    const hidden = tank.fish.length - shown.length;
+    hiddenLabel = hidden > 0 ? `+${hidden}` : '';
 
-    const keep = new Set(shown.map((f) => f.id));
-    for (let i = pool.count - 1; i >= 0; i--) if (!keep.has(slotId[i] as number)) removeSlot(i);
+    keep.clear();
+    for (const f of shown) keep.add(f.id);
+    for (let i = swim.count - 1; i >= 0; i--) {
+      const id = slotId[i] as number;
+      if (keep.has(id)) continue;
+      slotOf.delete(id);
+      const lastSlot = swim.count - 1;
+      swim.removeAt(i);
+      if (i !== lastSlot) moveSlot(lastSlot, i);
+    }
     for (const f of shown) {
       let i = slotOf.get(f.id);
-      const fresh = i === undefined;
+      const len = fishLength(f);
       if (i === undefined) {
-        i = pool.count++;
+        const species = content.species.findIndex((s) => s.id === f.speciesId);
+        i = swim.add(species + 1, len, TEMPERAMENT[f.speciesId] ?? DEFAULT_TEMPERAMENT, view);
+        if (i < 0) continue;
         slotId[i] = f.id;
         slotOf.set(f.id, i);
-        pool.spawn(i, w, h - floorH(), Math.random);
+        lookKey[i] = -1;
       }
-      updateLook(i, f, fresh);
+      const key = lookKeyOf(f);
+      if (lookKey[i] !== key) {
+        const look = lookFor(f);
+        looks[i] = look;
+        gfx[i] = makeGfx(ctx, look, sheen, (len / BODY_UNITS) * dpr);
+        lookKey[i] = key;
+      }
+      const s = swim.fish[i];
+      if (s) s.len = len;
+      applyEnv(i, f, tank);
     }
   }
 
   function dropFood() {
-    for (let i = 0; i < MAX_FLAKES; i++) {
-      flakeX[i] = w * (0.3 + 0.4 * Math.random());
-      flakeY[i] = h * 0.06 + Math.random() * 10;
-      flakeVy[i] = 12 + Math.random() * 14;
-      flakeAge[i] = 0;
-    }
+    particles.dropFood(Math.max(10, Math.min(48, swim.count * 3)), view);
   }
 
-  function drawScene() {
-    ctx.fillStyle = water ?? '#174f5c';
-    ctx.fillRect(0, 0, w, h);
+  function sortItems(): number {
+    let n = 0;
+    for (let i = 0; i < swim.count; i++) {
+      order[n] = i;
+      keys[n] = (swim.fish[i]?.z ?? 0) / view.depth;
+      n++;
+    }
+    for (let j = 0; j < plants.length; j++) {
+      order[n] = PLANT_BASE + j;
+      keys[n] = (plants[j]?.z ?? 0) / view.depth;
+      n++;
+    }
+    if (backdrop) {
+      order[n] = BUBBLES_ITEM;
+      keys[n] = backdrop.filter.z / view.depth;
+      n++;
+    }
+    // Insertion sort, far to near. Nearly sorted frame to frame, so this is cheap.
+    for (let a = 1; a < n; a++) {
+      const k = keys[a] as number;
+      const o = order[a] as number;
+      let b = a - 1;
+      while (b >= 0 && (keys[b] as number) < k) {
+        keys[b + 1] = keys[b] as number;
+        order[b + 1] = order[b] as number;
+        b--;
+      }
+      keys[b + 1] = k;
+      order[b + 1] = o;
+    }
+    return n;
+  }
 
-    // Light rays.
-    ctx.globalAlpha = 0.06;
-    ctx.fillStyle = '#ffffff';
-    for (let i = 0; i < 3; i++) {
-      const x0 = w * (0.15 + 0.3 * i);
+  function drawHaze() {
+    ctx.globalAlpha = 0.07;
+    ctx.fillStyle = HAZE;
+    ctx.fillRect(0, 0, view.w, view.h);
+    ctx.globalAlpha = 1;
+  }
+
+  function drawOneFish(i: number) {
+    const f = swim.fish[i];
+    const look = looks[i];
+    const g = gfx[i];
+    if (!f || !look || !g) return;
+    const p = scaleAt(view, f.z);
+    const cy = Math.cos(f.yaw);
+    const facing = cy >= 0 ? 1 : -1;
+    const proj = Math.max(0.22, Math.abs(cy));
+    const k = (f.len / BODY_UNITS) * p;
+    const cyc = Math.abs(cy) < 0.25 ? (cy < 0 ? -0.25 : 0.25) : cy;
+    pose.x = screenX(view, f.x, f.z);
+    pose.y = screenY(view, f.y, f.z);
+    // A thick body doesn't look steeper when foreshortened: keep the on-screen tilt at the pitch.
+    pose.angle = Math.atan(proj * Math.tan(f.pitch));
+    pose.sx = facing * proj * k;
+    pose.sy = k;
+    pose.tail = f.tail;
+    pose.tailK = Math.min(1.7, Math.max(0.15, Math.cos(f.yaw + f.tail) / cyc));
+    pose.rearK = Math.min(1.25, Math.max(0.7, Math.cos(f.yaw + f.tail * 0.35) / cyc));
+    pose.pec = f.pecPhase;
+    pose.pecAmp = f.pecAmp;
+    const breath = 0.5 + 0.5 * Math.sin(f.breathPhase);
+    pose.gill = breath;
+    pose.mouth = Math.max(f.snap, breath * (0.2 + 0.8 * f.stress));
+    pose.shimmer = 0.5 + 0.5 * Math.sin(f.yaw * 3 + f.x * 0.015);
+    pose.detail = renderFlags.detail && f.len * p * proj > (DETAIL_MIN_PX[quality] as number);
+    drawFish(ctx, look, g, pose);
+    scrX[i] = pose.x;
+    scrY[i] = pose.y;
+    scrL[i] = f.len * p;
+  }
+
+  function drawShadows() {
+    ctx.fillStyle = '#000000';
+    for (let i = 0; i < swim.count; i++) {
+      const f = swim.fish[i];
+      if (!f) continue;
+      const fy = floorY(view, f.z);
+      const above = fy - f.y;
+      const a = 0.2 * Math.max(0, 1 - above / (view.h * 0.55)) * light;
+      if (a < 0.01) continue;
+      const p = scaleAt(view, f.z);
+      const rx = f.len * p * 0.42 * (1 + above / view.h);
+      ctx.globalAlpha = a;
       ctx.beginPath();
-      ctx.moveTo(x0, 0);
-      ctx.lineTo(x0 + w * 0.12, 0);
-      ctx.lineTo(x0 + w * 0.02, h);
-      ctx.lineTo(x0 - w * 0.1, h);
+      ctx.ellipse(
+        screenX(view, f.x, f.z),
+        screenY(view, fy, f.z),
+        rx,
+        rx * 0.22,
+        0,
+        0,
+        Math.PI * 2,
+      );
       ctx.fill();
     }
     ctx.globalAlpha = 1;
+  }
 
-    // Sand.
-    const fh = floorH();
-    ctx.fillStyle = '#c9b48a';
-    ctx.fillRect(0, h - fh, w, fh);
-    ctx.fillStyle = '#b39d72';
-    ctx.fillRect(0, h - fh, w, 3);
-
-    // Plants (Java Fern style leaves, scaled by mass).
-    for (let p = 0; p < plantCount; p++) {
-      const baseX = w * ((p + 1) / (plantCount + 1)) + (p % 2 === 0 ? -w * 0.18 : w * 0.18);
-      const baseY = h - fh + 4;
-      const m = plantMass[p] as number;
-      const leafLen = Math.min(h * 0.45, h * 0.18 * Math.sqrt(m) + 10);
-      for (let k = 0; k < 6; k++) {
-        const ang = -Math.PI / 2 + (k - 2.5) * 0.28;
-        const sway = Math.sin(last / 1400 + k + p) * 0.05;
-        const len = leafLen * (0.7 + 0.3 * ((k * 7) % 5) * 0.25);
-        ctx.save();
-        ctx.translate(baseX, baseY);
-        ctx.rotate(ang + Math.PI / 2 + sway);
-        ctx.fillStyle = k % 2 === 0 ? '#2f7a3a' : '#3d8f45';
-        ctx.beginPath();
-        ctx.ellipse(0, -len / 2, Math.max(4, len * 0.13), len / 2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-    }
-
-    // Filter bubbles.
-    ctx.fillStyle = 'rgba(220,245,255,0.55)';
-    for (let i = 0; i < MAX_BUBBLES; i++) {
+  function drawSickBadges() {
+    for (let i = 0; i < swim.count; i++) {
+      const look = looks[i];
+      if (!look?.sick) continue;
+      const x = scrX[i] as number;
+      const y = (scrY[i] as number) - (scrL[i] as number) * 0.45 - 8;
+      ctx.fillStyle = '#ff5c5c';
       ctx.beginPath();
-      ctx.arc(bubbleX[i] as number, bubbleY[i] as number, bubbleR[i] as number, 0, Math.PI * 2);
+      ctx.arc(x, y, 5.5, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x - 3, y - 0.9, 6, 1.8);
+      ctx.fillRect(x - 0.9, y - 3, 1.8, 6);
     }
   }
 
   function frame(now: number) {
     if (disposed) return;
+    const t0 = performance.now();
     const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
+    const t = now / 1000;
+    const b = backdrop;
 
-    // Bubbles.
-    for (let i = 0; i < MAX_BUBBLES; i++) {
-      bubbleY[i] = (bubbleY[i] as number) - (30 + (bubbleR[i] as number) * 8) * dt;
-      if ((bubbleY[i] as number) < 0) bubbleY[i] = h - floorH();
+    particles.step(dt, view, b ? b.filter : null, dirt);
+    swim.step(dt, view, particles.flakes);
+
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    if (b) {
+      ctx.drawImage(b.bg, 0, 0, view.w, view.h);
+      if (renderFlags.light && lightLayer && quality > 0)
+        drawLight(ctx, lightLayer, view, b, t, light, REFRESH_EVERY[quality] as number);
+      drawSurface(ctx, view, b, t);
+    }
+    particles.drawRipples(ctx, view);
+    if (renderFlags.motes && quality > 0) particles.drawMotes(ctx, view, true, dirt > 35);
+    if (renderFlags.shadows && quality > 0) drawShadows();
+
+    const n = sortItems();
+    let haze = 0;
+    for (let k = 0; k < n; k++) {
+      const z = keys[k] as number;
+      while (haze < HAZE_LEVELS.length && z < (HAZE_LEVELS[haze] as number)) {
+        if (renderFlags.haze && haze < quality) drawHaze();
+        haze++;
+      }
+      const item = order[k] as number;
+      if (item === BUBBLES_ITEM) particles.drawBubbles(ctx, view);
+      else if (item >= PLANT_BASE) {
+        const pv = plants[item - PLANT_BASE];
+        if (pv && renderFlags.plants)
+          drawPlant(ctx, pv, view, t, leafPaints, REFRESH_EVERY[quality] as number);
+      } else drawOneFish(item);
+    }
+    while (haze < HAZE_LEVELS.length) {
+      if (renderFlags.haze && haze < quality) drawHaze();
+      haze++;
     }
 
-    // Food flakes sink; fish are drawn to their centre and eat them.
-    let fx = 0;
-    let fy = 0;
-    let live = 0;
-    for (let i = 0; i < MAX_FLAKES; i++) {
-      if ((flakeAge[i] as number) < 0) continue;
-      flakeAge[i] = (flakeAge[i] as number) + dt;
-      flakeY[i] = (flakeY[i] as number) + (flakeVy[i] as number) * dt;
-      if ((flakeAge[i] as number) > 6 || (flakeY[i] as number) > h - floorH()) {
-        flakeAge[i] = -1;
-        continue;
-      }
-      for (let j = 0; j < pool.count; j++) {
-        const dx = (pool.x[j] as number) - (flakeX[i] as number);
-        const dy = (pool.y[j] as number) - (flakeY[i] as number);
-        const r = (pool.len[j] as number) * 0.5;
-        if (dx * dx + dy * dy < r * r) {
-          flakeAge[i] = -1;
-          break;
-        }
-      }
-      if ((flakeAge[i] as number) >= 0) {
-        fx += flakeX[i] as number;
-        fy += flakeY[i] as number;
-        live++;
-      }
-    }
-    pool.step(dt, w, h, floorH(), live > 0 ? fx / live : NaN, live > 0 ? fy / live : NaN);
+    particles.drawFlakes(ctx, view);
+    if (renderFlags.motes && quality > 0) particles.drawMotes(ctx, view, false, dirt > 35);
 
-    drawScene();
-
-    ctx.fillStyle = '#e9d29a';
-    for (let i = 0; i < MAX_FLAKES; i++) {
-      if ((flakeAge[i] as number) < 0) continue;
-      ctx.fillRect((flakeX[i] as number) - 1.5, (flakeY[i] as number) - 1.5, 3, 3);
-    }
-
-    for (let i = 0; i < pool.count; i++)
-      drawFish(
-        ctx,
-        looks[i] as FishLook,
-        pool.x[i] as number,
-        pool.y[i] as number,
-        pool.vx[i] as number,
-        pool.vy[i] as number,
-        pool.len[i] as number,
-        pool.phase[i] as number,
-      );
-
-    // Dirty water: a murky tint that deepens with D. Algae overlay: alpha = A / 150 (GDD §14).
-    if (dirt > 0) {
-      ctx.globalAlpha = Math.min(0.55, dirt / 180);
-      ctx.fillStyle = '#5d5a2a';
-      ctx.fillRect(0, 0, w, h);
+    // Dirty water turns murky green-brown. Algae (M6) films the glass: alpha = A / 150.
+    if (dirt > 0 && renderFlags.murk) {
+      ctx.globalAlpha = Math.min(0.5, dirt / 200);
+      ctx.fillStyle = '#4d5a2c';
+      ctx.fillRect(0, 0, view.w, view.h);
     }
     if (algae > 0) {
       ctx.globalAlpha = Math.min(1, algae / 150);
       ctx.fillStyle = '#3f8f2f';
-      ctx.fillRect(0, 0, w, h);
+      ctx.fillRect(0, 0, view.w, view.h);
     }
     ctx.globalAlpha = 1;
+    if (b && renderFlags.overlay) ctx.drawImage(b.front, 0, 0, view.w, view.h);
+    particles.drawRings(ctx);
+    drawSickBadges();
 
-    if (hiddenCount > 0) {
+    if (hiddenLabel) {
       ctx.fillStyle = 'rgba(0,0,0,0.45)';
-      ctx.fillRect(w - 58, 8, 50, 24);
+      ctx.fillRect(view.w - 58, 10, 50, 24);
       ctx.fillStyle = '#ffffff';
       ctx.font = '600 14px system-ui, sans-serif';
-      ctx.fillText(hiddenLabel, w - 50, 25);
+      ctx.fillText(hiddenLabel, view.w - 50, 27);
     }
 
+    adaptQuality(now);
     frames++;
+    drawMsSum += performance.now() - t0;
     if (now - fpsT0 >= 1000) {
-      fpsText = `${Math.round((frames * 1000) / (now - fpsT0))} fps · ${pool.count} fish`;
+      lastFps = Math.round((frames * 1000) / (now - fpsT0));
+      lastMs = drawMsSum / frames;
+      fpsText = `${lastFps} fps · ${lastMs.toFixed(1)} ms · Q${quality} · ${swim.count} fish`;
       frames = 0;
+      drawMsSum = 0;
       fpsT0 = now;
     }
     if (showFps) {
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(8, 8, 120, 22);
+      ctx.fillRect(8, 10, 196, 22);
       ctx.fillStyle = '#9dff9d';
       ctx.font = '12px ui-monospace, monospace';
-      ctx.fillText(fpsText, 14, 23);
+      ctx.fillText(fpsText, 14, 25);
     }
 
     raf = requestAnimationFrame(frame);
@@ -343,15 +553,19 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
   return {
     setTank,
     dropFood,
+    poke(x, y) {
+      swim.poke(x, y, view);
+      particles.ring(x, y);
+    },
     hitTest(x, y) {
       let best: number | null = null;
       let bestD = Infinity;
-      for (let i = 0; i < pool.count; i++) {
-        const dx = x - (pool.x[i] as number);
-        const dy = y - (pool.y[i] as number);
+      for (let i = 0; i < swim.count; i++) {
+        const dx = x - (scrX[i] as number);
+        const dy = y - (scrY[i] as number);
         const d = dx * dx + dy * dy;
         // Generous radius: at least 24 px, so a tap target is ≥ 48 px across.
-        const r = Math.max(24, (pool.len[i] as number) * 0.9);
+        const r = Math.max(24, (scrL[i] as number) * 0.7);
         if (d < r * r && d < bestD) {
           bestD = d;
           best = slotId[i] as number;
@@ -361,6 +575,9 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
     },
     setShowFps(on) {
       showFps = on;
+    },
+    stats() {
+      return { fps: lastFps, ms: lastMs, fish: swim.count, quality };
     },
     dispose() {
       disposed = true;

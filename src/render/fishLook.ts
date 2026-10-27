@@ -1,5 +1,6 @@
 import { content } from '../content';
 import { isSick, phenotype } from '../sim/fish';
+import { stageOf } from '../sim/stage';
 import type { Fish, FishGenes } from '../sim/types';
 
 /**
@@ -47,8 +48,6 @@ export interface SpeciesShape {
   /** Chin barbels (arowana). */
   barbels: boolean;
   eyeR: number;
-  /** Swim speed multiplier: danios dart, discus glide. */
-  swim: number;
   /** Body length multiplier for females vs males (guppy females are bigger). */
   femaleScale: number;
 }
@@ -66,7 +65,6 @@ const shape = (
   filaments: false,
   barbels: false,
   eyeR: 5,
-  swim: 1,
   femaleScale: 1,
   ...s,
 });
@@ -84,7 +82,6 @@ export const SHAPES: Record<string, SpeciesShape | undefined> = {
     eyeR: 6,
   }),
   danio: shape({
-    swim: 1.4,
     hTop: 8,
     hBot: 8,
     ped: 4,
@@ -105,7 +102,6 @@ export const SHAPES: Record<string, SpeciesShape | undefined> = {
     dorsal: 'mid',
   }),
   neon: shape({
-    swim: 1.15,
     hTop: 9,
     hBot: 9,
     ped: 4,
@@ -138,7 +134,6 @@ export const SHAPES: Record<string, SpeciesShape | undefined> = {
     dorsal: 'mid',
   }),
   goldfish: shape({
-    swim: 0.8,
     hTop: 21,
     hBot: 19,
     ped: 7,
@@ -150,7 +145,6 @@ export const SHAPES: Record<string, SpeciesShape | undefined> = {
     eyeR: 6,
   }),
   betta: shape({
-    swim: 0.6,
     hTop: 11,
     hBot: 11,
     ped: 6,
@@ -162,7 +156,6 @@ export const SHAPES: Record<string, SpeciesShape | undefined> = {
     anal: 'long',
   }),
   angel: shape({
-    swim: 0.65,
     hTop: 22,
     hBot: 22,
     ped: 4,
@@ -176,7 +169,6 @@ export const SHAPES: Record<string, SpeciesShape | undefined> = {
     eyeR: 5.5,
   }),
   discus: shape({
-    swim: 0.55,
     hTop: 36,
     hBot: 36,
     ped: 6,
@@ -189,7 +181,6 @@ export const SHAPES: Record<string, SpeciesShape | undefined> = {
     eyeR: 5,
   }),
   flowerhorn: shape({
-    swim: 0.8,
     hTop: 18,
     hBot: 16,
     ped: 7,
@@ -201,7 +192,6 @@ export const SHAPES: Record<string, SpeciesShape | undefined> = {
     anal: 'long',
   }),
   arowana: shape({
-    swim: 0.75,
     hTop: 8,
     hBot: 10,
     ped: 6,
@@ -222,9 +212,10 @@ export interface FishLook {
   body: string;
   belly: string;
   fin: string;
+  /** Pupil colour (red for albinos). */
   eye: string;
-  /** Light ring so the eye reads on dark bodies too. */
-  eyeRing: string;
+  /** Iris ring colour, per species. */
+  iris: string;
   accent: string;
   accent2: string;
   tail: TailKind;
@@ -242,6 +233,10 @@ export interface FishLook {
   /** Locus-2 marking (discus snakeskin). */
   pattern2: 'none' | 'snakeskin';
   sick: boolean;
+  /** Whole-fish opacity (fry are see-through). */
+  alpha: number;
+  /** Eye size multiplier (young fish have big eyes). */
+  eyeScale: number;
 }
 
 // ---------- colour helpers (run at sync time only, never per frame) ----------
@@ -265,6 +260,29 @@ export function mix(a: string, b: string, t: number): string {
 }
 
 const DARK_EYE = '#15171a';
+
+/** Iris colour per species: silver guppies, red-ringed angels, orange-eyed discus. */
+const IRIS: Record<string, string | undefined> = {
+  guppy: '#c9d4d8',
+  danio: '#d5dade',
+  platy: '#c9a85a',
+  neon: '#8cc4e0',
+  molly: '#c9b27a',
+  swordtail: '#d9b26a',
+  goldfish: '#e6c27a',
+  betta: '#6a4038',
+  angel: '#c4483c',
+  discus: '#d2502f',
+  flowerhorn: '#e0b33c',
+  arowana: '#d7c9a0',
+};
+const SICK_GREY = '#a3abae';
+
+/** '#rrggbb' + alpha → 'rgba(r,g,b,a)' (sync time only). */
+export function rgba(hex: string, a: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${a})`;
+}
 
 /** Colour-locus markings and accents, keyed `species.allele`. */
 const COLOUR_MARKS: Record<
@@ -371,13 +389,25 @@ export function lookFor(fish: Fish): FishLook {
       break;
   }
 
+  // How the fish is doing shows on its body.
+  const sick = sp ? isSick(fish) : false;
+  if (sick) {
+    body = mix(body, SICK_GREY, 0.35);
+    fin = mix(fin, SICK_GREY, 0.3);
+    finMul *= 0.62;
+  }
+  if (fish.hunger < 15) bellyMul *= 1.08;
+  else if (fish.hunger > content.balance.health.hungerProblemAbove) bellyMul *= 0.85;
+  const stage = stageOf(fish.ageH);
+  const albino = colour?.eye !== undefined;
+
   return {
     shape: shp,
     body,
     belly: mix(body, '#ffffff', 0.35),
     fin,
     eye: colour?.eye ?? DARK_EYE,
-    eyeRing: '#f4f4f0',
+    iris: albino ? '#f3c4c4' : (IRIS[fish.speciesId] ?? '#d0d4d6'),
     accent,
     accent2,
     tail,
@@ -388,7 +418,9 @@ export function lookFor(fish: Fish): FishLook {
     sword: fish.speciesId === 'swordtail' && male,
     pattern,
     pattern2,
-    sick: sp ? isSick(fish) : false,
+    sick,
+    alpha: stage === 'fry' ? 0.72 : 1,
+    eyeScale: stage === 'fry' ? 1.5 : stage === 'juvenile' ? 1.18 : 1,
   };
 }
 

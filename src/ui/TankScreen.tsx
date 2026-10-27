@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { createTankRenderer, type TankRenderer } from '../render/tankRenderer';
+import { createTankRenderer, renderFlags, type TankRenderer } from '../render/tankRenderer';
 import { ActionBar } from './ActionBar';
 import { Meters } from './Meters';
 import { useGame, useServices } from './storeContext';
@@ -17,6 +17,9 @@ export function TankScreen() {
     if (!canvas) return;
     const r = createTankRenderer(canvas);
     rendererRef.current = r;
+    // Dev builds expose the renderer and its layer switches to profiling tools.
+    if (import.meta.env.DEV)
+      Object.assign(window, { __finfernRenderer: r, __finfernFlags: renderFlags });
     const sync = () => {
       const s = store.getState();
       r.setTank(s.game.tanks.find((t) => t.id === s.selectedTankId) ?? null);
@@ -34,8 +37,11 @@ export function TankScreen() {
 
   const onTap = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const id = rendererRef.current?.hitTest(e.clientX - rect.left, e.clientY - rect.top) ?? null;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const id = rendererRef.current?.hitTest(x, y) ?? null;
     if (id !== null) openSheet({ kind: 'fish', fishId: id });
+    else rendererRef.current?.poke(x, y);
   };
 
   return (

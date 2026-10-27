@@ -12,10 +12,48 @@ describe('fish looks', () => {
     expect(fish).toHaveLength(68 * 2);
     for (const f of fish) {
       const look = lookFor(f);
-      for (const c of [look.body, look.belly, look.fin, look.eye, look.accent, look.accent2])
+      for (const c of [
+        look.body,
+        look.belly,
+        look.fin,
+        look.eye,
+        look.iris,
+        look.accent,
+        look.accent2,
+      ])
         expect(c, `${f.speciesId} ${f.genes.locus1.join('/')}`).toMatch(/^#[0-9a-f]{6}$/);
       expect(look.finMul).toBeGreaterThan(0);
     }
+  });
+
+  it('health and hunger show on the body', () => {
+    const base = allPhenotypeFish()[0];
+    if (!base) throw new Error('no fish');
+    const healthy = lookFor({ ...base, hunger: 40 });
+    const sick = lookFor({ ...base, hunger: 40, hp: 20 });
+    expect(sick.sick).toBe(true);
+    expect(sick.finMul).toBeLessThan(healthy.finMul);
+    expect(sick.body).not.toBe(healthy.body);
+    expect(lookFor({ ...base, hunger: 5 }).bellyMul).toBeGreaterThan(healthy.bellyMul);
+    expect(lookFor({ ...base, hunger: 95 }).bellyMul).toBeLessThan(healthy.bellyMul);
+  });
+
+  it('fry are see-through with big eyes', () => {
+    const base = allPhenotypeFish()[0];
+    if (!base) throw new Error('no fish');
+    const fry = lookFor({ ...base, ageH: 5 });
+    expect(fry.alpha).toBeLessThan(1);
+    expect(fry.eyeScale).toBeGreaterThan(1);
+    expect(lookFor(base).alpha).toBe(1);
+  });
+
+  it('albinos keep the red eye; species have their own iris', () => {
+    const all = allPhenotypeFish();
+    const albino = all.find((f) => f.speciesId === 'guppy' && f.genes.locus1[0] === 'albino');
+    const angel = all.find((f) => f.speciesId === 'angel');
+    if (!albino || !angel) throw new Error('missing');
+    expect(lookFor(albino).eye).toBe('#d22f3c');
+    expect(lookFor(angel).iris).not.toBe(lookFor(all[0] as (typeof all)[number]).iris);
   });
 
   it('morphs change shape, not just colour', () => {

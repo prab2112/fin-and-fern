@@ -353,7 +353,12 @@ export class Swimmers {
       }
     }
     f.tx = this.clampX(f, v, v.w * (0.08 + 0.84 * r()));
-    f.tz = this.clampZ(f, v, v.depth * (0.08 + 0.84 * r()));
+    // Fish mostly patrol along the glass: most waypoints stay near the current depth.
+    f.tz = this.clampZ(
+      f,
+      v,
+      r() < 0.75 ? f.z + (r() - 0.5) * v.depth * 0.45 : v.depth * (0.08 + 0.84 * r()),
+    );
     f.ty = r() < t.surface ? v.surface + L * 0.4 : this.bandY(f, v, f.tz);
   }
 
@@ -582,8 +587,10 @@ export class Swimmers {
         turnSlow = 0.55 + 0.45 * Math.max(0, Math.cos(Math.min(Math.abs(dYaw), Math.PI)));
       }
       if (f.pitchHold !== f.pitchHold) {
-        // Cruising fish stay fairly level; diving to food, the gravel or the surface is steeper.
-        const lim = f.mode === MODE.cruise || f.mode === MODE.hover ? 0.6 : 1;
+        // Cruising fish stay fairly level; diving to food, the gravel or the surface is steeper,
+        // and nimble species (high turn rate) can climb more steeply than big stiff ones.
+        const agile = Math.min(0.8, 0.1 + 0.12 * t.turnRate);
+        const lim = f.mode === MODE.cruise || f.mode === MODE.hover ? Math.min(0.3, agile) : agile;
         wantPitch = clamp(Math.atan2(f.dy, Math.max(horiz, 1e-6)), -lim, lim);
       }
     }

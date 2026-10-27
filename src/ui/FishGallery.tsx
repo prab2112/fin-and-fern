@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { content } from '../content';
-import { drawFish } from '../render/fishDraw';
+import { BODY_UNITS, drawFishStatic, makeGfx, makePose, makeSheen } from '../render/fishDraw';
 import { allPhenotypeFish, lookFor, SHAPES } from '../render/fishLook';
 import { morphLabel } from '../sim/fish';
 import type { Fish } from '../sim/types';
@@ -27,8 +27,22 @@ function PairCanvas({ male, female }: { male: Fish; female: Fish }) {
     const shape = SHAPES[male.speciesId];
     const tall = (shape?.hTop ?? 10) >= 20;
     const len = tall ? 34 : 46;
-    drawFish(ctx, lookFor(male), CELL_W * 0.3, CELL_H * 0.5, 1, 0, len, 0.6);
-    drawFish(ctx, lookFor(female), CELL_W * 0.78, CELL_H * 0.5, 1, 0, len, 2.2);
+    const sheen = makeSheen(ctx);
+    const pose = makePose();
+    const m = lookFor(male);
+    const f = lookFor(female);
+    const ppu = (len / BODY_UNITS) * dpr;
+    drawFishStatic(ctx, m, makeGfx(ctx, m, sheen, ppu), pose, CELL_W * 0.3, CELL_H * 0.5, len, 0.6);
+    drawFishStatic(
+      ctx,
+      f,
+      makeGfx(ctx, f, sheen, ppu),
+      pose,
+      CELL_W * 0.78,
+      CELL_H * 0.5,
+      len,
+      2.2,
+    );
   }, [male, female]);
   return <canvas ref={ref} style={{ width: CELL_W, height: CELL_H, borderRadius: 10 }} />;
 }

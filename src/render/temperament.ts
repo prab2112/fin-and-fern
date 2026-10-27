@@ -33,7 +33,7 @@ export const TEMPERAMENT: Record<string, Temperament | undefined> = {
     turnRate: 5,
     hover: 0.25,
     burstGlide: true,
-    school: 0.3,
+    school: 0.1,
     forager: true,
     surface: 0.08,
   }),

@@ -146,9 +146,12 @@ button {
   flex: 1;
   min-height: 0;
   margin: 0 8px;
-  border-radius: 14px;
+  border-radius: 10px;
   overflow: hidden;
-  border: 2px solid #2b6f7d;
+  border: 3px solid #0d1417;
+  box-shadow:
+    0 0 0 1px #2b6f7d,
+    0 6px 18px rgba(0, 0, 0, 0.45);
 }
 .tank-canvas {
   display: block;
