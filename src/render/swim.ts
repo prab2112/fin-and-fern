@@ -220,6 +220,13 @@ export class Swimmers {
   ): void {
     const f = this.fish[i];
     if (!f) return;
+    // A real change in needs (fell sick, water turned bad, got hungry): rethink right away
+    // instead of finishing the current cruise.
+    const changed =
+      Math.abs(restP - f.restP) > 0.15 ||
+      Math.abs(gaspP - f.gaspP) > 0.15 ||
+      Math.abs(begP - f.begP) > 0.15;
+    if (changed && f.mode !== MODE.feed && f.mode !== MODE.flee) f.timer = Math.min(f.timer, 0);
     f.speedMul = speedMul;
     f.gaspP = gaspP;
     f.begP = begP;
@@ -606,8 +613,10 @@ export class Swimmers {
     const cp = Math.cos(f.pitch);
     f.x = clamp(f.x + Math.cos(f.yaw) * cp * f.speed * dt, L * 0.3, v.w - L * 0.3);
     f.z = clamp(f.z + Math.sin(f.yaw) * cp * f.speed * dt, L * 0.3, v.depth - L * 0.3);
+    // Resting (sick or chilled) fish lose some buoyancy control and sink toward the gravel.
+    const sink = f.mode === MODE.rest && !f.arrived ? 0.8 * L : 0;
     f.y = clamp(
-      f.y + Math.sin(f.pitch) * f.speed * dt,
+      f.y + (Math.sin(f.pitch) * f.speed + sink) * dt,
       v.surface + L * 0.12,
       floorY(v, f.z) - L * 0.22,
     );

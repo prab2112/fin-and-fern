@@ -196,6 +196,23 @@ describe('swimmers', () => {
     expect(b).toBeLessThan(a * 0.6);
   });
 
+  it('reacts promptly when the sim changes its needs (falls sick → heads for the bottom)', () => {
+    const { v, s } = school('guppy', 1, 21);
+    const f = s.fish[0];
+    if (!f) throw new Error('no fish');
+    // Mid-way through a long cruise near the top.
+    for (let k = 0; k < 60; k++) s.step(DT, v, NO_FOOD);
+    f.y = v.surface + 40;
+    f.mode = MODE.cruise;
+    f.timer = 12;
+    f.arrived = false;
+    s.setEnv(0, 0.45, 0, 0, 0.85, 0.5);
+    for (let k = 0; k < 1 / DT; k++) s.step(DT, v, NO_FOOD);
+    expect(f.mode).toBe(MODE.rest);
+    for (let k = 0; k < 15 / DT; k++) s.step(DT, v, NO_FOOD);
+    expect((f.y - v.surface) / (floorY(v, f.z) - v.surface)).toBeGreaterThan(0.85);
+  });
+
   it('removing a fish keeps the others intact', () => {
     const { v, s } = school('guppy', 3, 1);
     const last = s.fish[2];
