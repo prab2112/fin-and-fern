@@ -151,6 +151,7 @@ describe('happiness (GDD §4)', () => {
     expect(happinessScore({ ...base, wq: 49 })).toBe(60);
     expect(happinessScore({ ...base, load: 20 })).toBe(0);
     expect(happinessScore({ ...base, cover: 1, decorCount: 3 })).toBe(100);
+    expect(happinessScore({ ...base, capacity: 0 })).toBe(70);
   });
 
   it('detects short schools and betta/flowerhorn conflict', () => {

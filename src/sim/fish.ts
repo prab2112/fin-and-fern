@@ -79,7 +79,7 @@ export function happinessScore(i: HappinessInputs): number {
     h.base +
       (i.cover >= h.coverThreshold ? h.coverBonus : 0) +
       h.decorEach * Math.min(i.decorCount, h.decorMax) -
-      h.overloadPenalty * Math.max(0, i.load / i.capacity - 1) -
+      h.overloadPenalty * (i.capacity > 0 ? Math.max(0, i.load / i.capacity - 1) : 0) -
       (i.schoolShort ? h.schoolPenalty : 0) -
       (i.conflict ? h.conflictPenalty : 0) -
       (i.wq < h.wqBelow ? h.wqPenalty : 0),
