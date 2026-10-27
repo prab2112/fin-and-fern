@@ -20,6 +20,8 @@ export interface Temperament {
   forager: boolean;
   /** Chance a waypoint is at the surface (labyrinth breathers, surface feeders). */
   surface: number;
+  /** How keenly males follow females and display (livebearers; 0 = never). */
+  courts: number;
 }
 
 const t = (x: Temperament) => x;
@@ -36,6 +38,7 @@ export const TEMPERAMENT: Record<string, Temperament | undefined> = {
     school: 0.1,
     forager: true,
     surface: 0.08,
+    courts: 0.6,
   }),
   danio: t({
     bandTop: 0,
@@ -48,6 +51,7 @@ export const TEMPERAMENT: Record<string, Temperament | undefined> = {
     school: 1,
     forager: false,
     surface: 0.1,
+    courts: 0,
   }),
   platy: t({
     bandTop: 0.15,
@@ -60,6 +64,7 @@ export const TEMPERAMENT: Record<string, Temperament | undefined> = {
     school: 0.2,
     forager: true,
     surface: 0,
+    courts: 0.3,
   }),
   neon: t({
     bandTop: 0.35,
@@ -72,6 +77,7 @@ export const TEMPERAMENT: Record<string, Temperament | undefined> = {
     school: 1,
     forager: false,
     surface: 0,
+    courts: 0,
   }),
   molly: t({
     bandTop: 0.1,
@@ -84,6 +90,7 @@ export const TEMPERAMENT: Record<string, Temperament | undefined> = {
     school: 0.2,
     forager: true,
     surface: 0.05,
+    courts: 0.3,
   }),
   swordtail: t({
     bandTop: 0.1,
@@ -96,6 +103,7 @@ export const TEMPERAMENT: Record<string, Temperament | undefined> = {
     school: 0.2,
     forager: true,
     surface: 0.05,
+    courts: 0.4,
   }),
   goldfish: t({
     bandTop: 0.2,
@@ -108,6 +116,7 @@ export const TEMPERAMENT: Record<string, Temperament | undefined> = {
     school: 0.3,
     forager: true,
     surface: 0.05,
+    courts: 0,
   }),
   betta: t({
     bandTop: 0,
@@ -120,6 +129,7 @@ export const TEMPERAMENT: Record<string, Temperament | undefined> = {
     school: 0,
     forager: false,
     surface: 0.35,
+    courts: 0,
   }),
   angel: t({
     bandTop: 0.15,
@@ -132,6 +142,7 @@ export const TEMPERAMENT: Record<string, Temperament | undefined> = {
     school: 0.25,
     forager: false,
     surface: 0,
+    courts: 0,
   }),
   discus: t({
     bandTop: 0.3,
@@ -144,6 +155,7 @@ export const TEMPERAMENT: Record<string, Temperament | undefined> = {
     school: 0.3,
     forager: false,
     surface: 0,
+    courts: 0,
   }),
   flowerhorn: t({
     bandTop: 0.35,
@@ -156,6 +168,7 @@ export const TEMPERAMENT: Record<string, Temperament | undefined> = {
     school: 0,
     forager: true,
     surface: 0,
+    courts: 0,
   }),
   arowana: t({
     bandTop: 0,
@@ -168,6 +181,7 @@ export const TEMPERAMENT: Record<string, Temperament | undefined> = {
     school: 0,
     forager: false,
     surface: 0.3,
+    courts: 0,
   }),
 };
 

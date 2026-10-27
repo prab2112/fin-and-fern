@@ -58,6 +58,8 @@ export interface Pose {
   gill: number;
   /** Iridescence 0..1 (changes as the fish turns). */
   shimmer: number;
+  /** Fin display 0..1: courting males spread their fins. */
+  flare: number;
   /** Full detail, or a cheap version for small / far fish. */
   detail: boolean;
 }
@@ -77,6 +79,7 @@ export function makePose(): Pose {
     mouth: 0,
     gill: 0,
     shimmer: 0,
+    flare: 0,
     detail: true,
   };
 }
@@ -311,7 +314,7 @@ function drawTail(
 ): void {
   const s = look.shape;
   const T = s.tailLen * look.finMul;
-  const S = s.tailSpread * Math.pow(look.finMul, 0.75);
+  const S = s.tailSpread * Math.pow(look.finMul, 0.75) * (1 + 0.3 * pose.flare);
   ctx.save();
   // The tail sweeps out of the screen plane: seen from the side it foreshortens.
   ctx.translate(TAIL_X * pose.rearK, 0);
@@ -372,9 +375,10 @@ function drawFins(
   wag: number,
   rx: number,
   detail: boolean,
+  flare: number,
 ): void {
   const s = look.shape;
-  const f = look.finMul;
+  const f = look.finMul * (1 + 0.35 * flare);
   const yt = -hT * 0.92;
   const yb = hB * 0.9;
   const p = s.ped;
@@ -752,7 +756,7 @@ export function drawFish(
   ctx.globalAlpha = look.alpha;
 
   drawTail(ctx, look, gfx, pose, detail);
-  drawFins(ctx, look, gfx, hT, hB, wag, rx, detail);
+  drawFins(ctx, look, gfx, hT, hB, wag, rx, detail, pose.flare);
 
   // Body, markings and outline: the baked sprite (or a plain countershaded body as a fallback).
   // Front and rear halves are drawn separately so the rear can flex with the tail.
@@ -874,6 +878,7 @@ export function drawFishStatic(
   pose.mouth = 0.3;
   pose.gill = 0.5;
   pose.shimmer = 0.6;
+  pose.flare = 0;
   pose.detail = true;
   drawFish(ctx, look, gfx, pose);
 }

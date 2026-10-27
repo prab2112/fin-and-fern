@@ -19,6 +19,8 @@ export const MODE = {
   gasp: 5,
   beg: 6,
   rest: 7,
+  court: 8,
+  hide: 9,
 } as const;
 export type Mode = (typeof MODE)[keyof typeof MODE];
 
@@ -34,6 +36,12 @@ export interface Flake {
 export interface Swimmer {
   /** Fish of the same species share a group (they school together). */
   group: number;
+  male: boolean;
+  /** Slot of the female a courting male follows. */
+  mate: number;
+  /** Fin display 0..1 (courting males flare their fins). */
+  flare: number;
+  display: boolean;
   /** Body length in px at the front glass. */
   len: number;
   t: Temperament;
@@ -95,6 +103,10 @@ export function wrapAngle(a: number): number {
 function blank(t: Temperament): Swimmer {
   return {
     group: 0,
+    male: false,
+    mate: -1,
+    flare: 0,
+    display: false,
     len: 20,
     t,
     speedMul: 1,
@@ -141,6 +153,11 @@ export class Swimmers {
   readonly fish: Swimmer[] = [];
   count = 0;
   private readonly rand: () => number;
+  /** Plants fish can take cover by (world px). */
+  private readonly coverX = new Float32Array(16);
+  private readonly coverZ = new Float32Array(16);
+  private readonly coverH = new Float32Array(16);
+  private coverCount = 0;
 
   constructor(rand: () => number = Math.random, placeholder?: Temperament) {
     this.rand = rand;
@@ -155,17 +172,22 @@ export class Swimmers {
       school: 0,
       forager: false,
       surface: 0,
+      courts: 0,
     };
     for (let i = 0; i < MAX_SWIMMERS; i++) this.fish.push(blank(t));
   }
 
   /** Adds a fish at a random spot in its preferred band. Returns its slot, or −1 when full. */
-  add(group: number, len: number, t: Temperament, v: View): number {
+  add(group: number, len: number, t: Temperament, v: View, male = false): number {
     if (this.count >= MAX_SWIMMERS) return -1;
     const i = this.count++;
     const f = this.fish[i] as Swimmer;
     const r = this.rand;
     f.group = group;
+    f.male = male;
+    f.mate = -1;
+    f.flare = 0;
+    f.display = false;
     f.len = len;
     f.t = t;
     f.speedMul = 1;
@@ -232,6 +254,16 @@ export class Swimmers {
     f.begP = begP;
     f.restP = restP;
     f.stress = stress;
+  }
+
+  /** Plants to hide by: base positions and heights (world px). */
+  setCover(xs: ArrayLike<number>, zs: ArrayLike<number>, hs: ArrayLike<number>): void {
+    this.coverCount = Math.min(this.coverX.length, xs.length);
+    for (let k = 0; k < this.coverCount; k++) {
+      this.coverX[k] = xs[k] as number;
+      this.coverZ[k] = zs[k] as number;
+      this.coverH[k] = hs[k] as number;
+    }
   }
 
   /** A tap on the glass: nearby fish dart away from it. */
@@ -326,8 +358,48 @@ export class Swimmers {
       f.tz = this.clampZ(f, v, L * (0.6 + r()));
       const top = v.surface + L * 0.5;
       f.ty = top + (floorY(v, f.tz) - top) * (0.1 + 0.3 * r());
-      f.timer = 4 + 4 * r();
+      f.timer = 5 + 4 * r();
       return;
+    }
+    // After a fright, dash for the nearest plant and hide by it for a few seconds.
+    if (was === MODE.flee && this.coverCount > 0 && r() < 0.75) {
+      let best = 0;
+      let bd = Infinity;
+      for (let k = 0; k < this.coverCount; k++) {
+        const dx = (this.coverX[k] as number) - f.x;
+        const dz = (this.coverZ[k] as number) - f.z;
+        if (dx * dx + dz * dz < bd) {
+          bd = dx * dx + dz * dz;
+          best = k;
+        }
+      }
+      f.mode = MODE.hide;
+      f.tx = this.clampX(f, v, (this.coverX[best] as number) + (r() - 0.5) * L * 2);
+      f.tz = this.clampZ(f, v, (this.coverZ[best] as number) + (r() - 0.5) * L * 1.5 - L * 0.5);
+      const floor = floorY(v, f.tz);
+      f.ty = Math.min(floor - L * 0.6, floor - (this.coverH[best] as number) * (0.25 + 0.4 * r()));
+      f.timer = 3 + 3 * r();
+      return;
+    }
+    // Courtship: a male picks the nearest female of his species and follows her.
+    if (f.male && t.courts > 0 && r() < t.courts) {
+      let best = -1;
+      let bd = Infinity;
+      for (let j = 0; j < this.count; j++) {
+        const g = this.fish[j] as Swimmer;
+        if (j === i || g.group !== f.group || g.male) continue;
+        const d2 = (g.x - f.x) ** 2 + (g.y - f.y) ** 2 + (g.z - f.z) ** 2;
+        if (d2 < bd) {
+          bd = d2;
+          best = j;
+        }
+      }
+      if (best >= 0) {
+        f.mode = MODE.court;
+        f.mate = best;
+        f.timer = 4 + 5 * r();
+        return;
+      }
     }
     if (was === MODE.cruise && r() < t.hover) {
       f.mode = MODE.hover;
@@ -404,7 +476,38 @@ export class Swimmers {
         f.snap = 1;
         f.speed *= 0.6;
       }
+    } else if (f.mode === MODE.court) {
+      const g = this.fish[f.mate];
+      if (!g || f.mate >= this.count || g.group !== f.group || g.male) {
+        f.timer = 0;
+        f.display = false;
+        this.choose(f, i, v);
+      } else {
+        // Follow just behind and beside her, weaving from side to side, fins flared when close.
+        const gp = Math.cos(g.pitch);
+        const side = Math.sin(f.timer * 2.3) * L * 0.6;
+        f.tx = g.x - Math.cos(g.yaw) * gp * L * 0.7 - Math.sin(g.yaw) * side;
+        f.ty = g.y - L * 0.1;
+        f.tz = g.z - Math.sin(g.yaw) * gp * L * 0.7 + Math.cos(g.yaw) * side;
+        const dx = f.x - g.x;
+        const dy = f.y - g.y;
+        const dz = f.z - g.z;
+        const d2 = dx * dx + dy * dy + dz * dz;
+        f.display = d2 < L * L * 3.2;
+        // She tires of it now and then and swims off.
+        if (
+          d2 < L * L * 1.4 &&
+          r() < dt * 0.25 &&
+          (g.mode === MODE.cruise || g.mode === MODE.hover)
+        )
+          g.timer = Math.min(g.timer, 0);
+        if (f.timer <= 0) {
+          f.display = false;
+          this.choose(f, i, v);
+        }
+      }
     } else {
+      f.display = false;
       const ex = f.tx - f.x;
       const ey = f.ty - f.y;
       const ez = f.tz - f.z;
@@ -545,7 +648,7 @@ export class Swimmers {
         want = f.arrived ? 0.04 * L : 0.9 * cruise + 0.2 * L;
         break;
       case MODE.beg:
-        want = f.arrived ? 0.1 * L : 0.8 * cruise + 0.3 * L;
+        want = f.arrived ? 0.1 * L : 1.1 * cruise + 0.3 * L;
         break;
       case MODE.feed:
         want =
@@ -556,6 +659,16 @@ export class Swimmers {
         break;
       case MODE.flee:
         want = t.burst * L;
+        break;
+      case MODE.court:
+        // Catch up fast when left behind, then match her pace.
+        want =
+          dist > 2 * L
+            ? t.burst * L * 0.6
+            : Math.max(cruise * 0.6, (dist / (1.2 * L)) * cruise * 1.3);
+        break;
+      case MODE.hide:
+        want = f.arrived ? 0.05 * L : 1.4 * cruise;
         break;
     }
     f.want = want;
@@ -596,7 +709,7 @@ export class Swimmers {
       if (f.pitchHold !== f.pitchHold) {
         // Cruising fish stay fairly level; diving to food, the gravel or the surface is steeper,
         // and nimble species (high turn rate) can climb more steeply than big stiff ones.
-        const agile = Math.min(0.8, 0.1 + 0.12 * t.turnRate);
+        const agile = Math.min(0.6, 0.08 + 0.1 * t.turnRate);
         const lim = f.mode === MODE.cruise || f.mode === MODE.hover ? Math.min(0.3, agile) : agile;
         wantPitch = clamp(Math.atan2(f.dy, Math.max(horiz, 1e-6)), -lim, lim);
       }
@@ -632,8 +745,13 @@ export class Swimmers {
           ? 0.14
           : 0.3 + 0.12 * Math.min(1.5, sNorm);
     if (f.mode === MODE.flee) amp = 0.7;
+    // A displaying male quivers: a fast, wide tail flick.
+    if (f.display) amp = Math.max(amp, 0.45);
     f.tailAmp += (amp - f.tailAmp) * Math.min(1, dt * 7);
-    const freq = Math.min(14, 1.1 + 1.4 * (f.speed / L) + (f.accel ? 2.5 : 0));
+    const freq = Math.min(
+      14,
+      1.1 + 1.4 * (f.speed / L) + (f.accel ? 2.5 : 0) + (f.display ? 3 : 0),
+    );
     f.tailPhase = (f.tailPhase + TAU * freq * dt) % TAU;
     f.tail = f.tailAmp * Math.sin(f.tailPhase);
     // Pectoral fins scull when hovering; gills breathe faster under stress.
@@ -641,5 +759,6 @@ export class Swimmers {
     f.pecAmp += ((slow ? 0.9 : 0.35) - f.pecAmp) * Math.min(1, dt * 4);
     f.pecPhase = (f.pecPhase + TAU * (slow ? 3.2 : 1.5) * dt) % TAU;
     f.breathPhase = (f.breathPhase + TAU * (1 + 1.8 * f.stress) * dt) % TAU;
+    f.flare += ((f.display ? 1 : 0) - f.flare) * Math.min(1, dt * 4);
   }
 }

@@ -213,6 +213,49 @@ describe('swimmers', () => {
     expect((f.y - v.surface) / (floorY(v, f.z) - v.surface)).toBeGreaterThan(0.85);
   });
 
+  it('male livebearers court females: they stay close and flare their fins', () => {
+    const pairDistance = (keen: boolean) => {
+      const v = view();
+      const sw = new Swimmers(createRng(31).next);
+      const t = { ...temper('guppy'), courts: keen ? 0.6 : 0, school: 0 };
+      sw.add(1, 22, t, v, true);
+      sw.add(1, 22, t, v, false);
+      const m = sw.fish[0];
+      const f = sw.fish[1];
+      if (!m || !f) throw new Error('no fish');
+      let flared = 0;
+      const d = sample(sw, v, 60, () => {
+        if (m.flare > 0.5) flared++;
+        return Math.hypot(m.x - f.x, m.y - f.y, m.z - f.z);
+      });
+      return { d, flared };
+    };
+    const on = pairDistance(true);
+    const off = pairDistance(false);
+    expect(on.d).toBeLessThan(off.d * 0.7);
+    expect(on.flared).toBeGreaterThan(60);
+    expect(off.flared).toBe(0);
+  });
+
+  it('after a fright, fish take cover by the plants', () => {
+    const { v, s } = school('platy', 1, 41);
+    const f = s.fish[0];
+    if (!f) throw new Error('no fish');
+    const cx = v.w * 0.25;
+    const cz = v.depth * 0.6;
+    s.setCover([cx], [cz], [v.h * 0.25]);
+    f.x = v.w * 0.75;
+    f.z = v.depth * 0.3;
+    for (let k = 0; k < 30; k++) s.step(DT, v, NO_FOOD);
+    s.poke(screenX(v, f.x, f.z), screenY(v, f.y, f.z), v);
+    let closest = Infinity;
+    for (let k = 0; k < 8 / DT; k++) {
+      s.step(DT, v, NO_FOOD);
+      closest = Math.min(closest, Math.hypot(f.x - cx, f.z - cz));
+    }
+    expect(closest).toBeLessThan(f.len * 3);
+  });
+
   it('removing a fish keeps the others intact', () => {
     const { v, s } = school('guppy', 3, 1);
     const last = s.fish[2];

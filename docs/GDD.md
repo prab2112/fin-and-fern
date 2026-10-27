@@ -490,7 +490,8 @@ Pearls are a soft currency earned only by playing.
   - WQ < 50: fish gasp at the surface and breathe faster; more particles and a murky tint.
   - Outside the species' temperature range: sluggish when cold (resting low), faster breathing and more surface time when hot.
   - Sick (HP < 40): paler, clamped fins, slow, resting near the bottom, with the sick icon.
-  - A tap on the glass that misses every fish startles nearby fish into a burst away.
+  - A tap on the glass that misses every fish startles nearby fish into a burst away; most then hide by the nearest plant for a few seconds.
+- **Social behaviour:** male livebearers court females (guppies keenly, swordtails, platies and mollies less): they follow just behind and beside her, flare their fins and quiver, and she swims off now and then. Courtship is visual only; breeding odds stay as in §6.
 - **Plants:** Java Fern grows on driftwood: lance-shaped leaves on a rhizome, with midribs and spore dots, swaying in the current and scaled by mass. Algae is a green overlay with `alpha = A / 150`.
 - **Budget:** 40 fish at 60 fps on a mid-range Android phone, with no per-frame allocations in the render loop. Fish bodies are baked into sprites when their look changes; caustics and light shafts render into a half-resolution layer every few frames; plants are cached sprites. **Adaptive quality** steps down (less frequent light and plant refresh, less haze, fine detail only on larger fish; at the lowest level no moving light, motes or shadows) when a device can't hold 48 fps, and back up after 10 s of smooth frames.
 - **Safeguard:** if a tank holds more than 60 fish, draw the 60 most valuable and show a "+N" badge.

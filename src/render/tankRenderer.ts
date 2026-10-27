@@ -157,6 +157,19 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
     qT0 = now;
   }
 
+  /** Plants double as cover that frightened fish hide by. */
+  function updateCover() {
+    swim.setCover(
+      plants.map((pv) => pv.x),
+      plants.map((pv) => pv.z),
+      plants.map((pv) => {
+        let h = 0;
+        for (let k = 0; k < pv.leaves; k++) h = Math.max(h, pv.length[k] as number);
+        return h * 0.8;
+      }),
+    );
+  }
+
   function rebuildStatic() {
     backdrop = buildBackdrop(view, dpr, 9001 + Math.max(0, tankId));
     lightLayer = makeLightLayer(view);
@@ -259,6 +272,7 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
       plants = [];
       plantSig = null;
       tankId = -1;
+      updateCover();
       return;
     }
     if (tank.id !== tankId) {
@@ -285,6 +299,7 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
         buildWood(pv, view, dpr, tank.id * 31 + i);
         buildPlantSprite(pv, view, dpr);
       });
+      updateCover();
     }
 
     // GDD §14 safeguard: draw the 60 most valuable fish and show "+N".
@@ -313,7 +328,13 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
       const len = fishLength(f);
       if (i === undefined) {
         const species = content.species.findIndex((s) => s.id === f.speciesId);
-        i = swim.add(species + 1, len, TEMPERAMENT[f.speciesId] ?? DEFAULT_TEMPERAMENT, view);
+        i = swim.add(
+          species + 1,
+          len,
+          TEMPERAMENT[f.speciesId] ?? DEFAULT_TEMPERAMENT,
+          view,
+          f.sex === 'M',
+        );
         if (i < 0) continue;
         slotId[i] = f.id;
         slotOf.set(f.id, i);
@@ -402,6 +423,7 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
     pose.gill = breath;
     pose.mouth = Math.max(f.snap, breath * (0.2 + 0.8 * f.stress));
     pose.shimmer = 0.5 + 0.5 * Math.sin(f.yaw * 3 + f.x * 0.015);
+    pose.flare = f.flare;
     pose.detail = renderFlags.detail && f.len * p * proj > (DETAIL_MIN_PX[quality] as number);
     drawFish(ctx, look, g, pose);
     scrX[i] = pose.x;
