@@ -53,7 +53,12 @@ function die(msg) {
   process.exit(1);
 }
 function sh(cmd) {
-  const r = spawnSync(cmd, { cwd: ROOT, shell: true, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const r = spawnSync(cmd, {
+    cwd: ROOT,
+    shell: true,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  });
   return { code: r.status ?? 1, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, Math.max(0, ms)));
@@ -68,8 +73,17 @@ function usage() {
 
 function parseArgs(argv) {
   const o = {
-    until: '07:00', minutes: null, to: 4, model: null, mode: 'auto', maxAttempts: 3,
-    sessionHours: 3, maxImprove: 6, improve: true, check: false, limitWaitMin: 20,
+    until: '07:00',
+    minutes: null,
+    to: 4,
+    model: null,
+    mode: 'auto',
+    maxAttempts: 3,
+    sessionHours: 3,
+    maxImprove: 6,
+    improve: true,
+    check: false,
+    limitWaitMin: 20,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -95,7 +109,8 @@ function parseArgs(argv) {
       die(`Unknown option: ${a}`);
     }
   }
-  if (!(o.to >= 1 && o.to <= 4)) die('--to must be 1–4 (M5+ needs you awake: app id, keystore, Play Console).');
+  if (!(o.to >= 1 && o.to <= 4))
+    die('--to must be 1–4 (M5+ needs you awake: app id, keystore, Play Console).');
   if (!['auto', 'acceptEdits'].includes(o.mode)) die('--mode must be auto or acceptEdits');
   return o;
 }
@@ -114,21 +129,28 @@ function ensureGitignore() {
   const gi = path.join(ROOT, '.gitignore');
   const text = fs.existsSync(gi) ? fs.readFileSync(gi, 'utf8') : '';
   const needed = ['node_modules/', '.overnight/'].filter((e) => !text.split(/\r?\n/).includes(e));
-  if (needed.length) fs.appendFileSync(gi, `${text.endsWith('\n') || !text ? '' : '\n'}${needed.join('\n')}\n`);
+  if (needed.length)
+    fs.appendFileSync(gi, `${text.endsWith('\n') || !text ? '' : '\n'}${needed.join('\n')}\n`);
 }
 
 function checkpoint(label) {
   if (!sh('git status --porcelain').out.trim()) return;
   sh('git add -A');
   const r = sh(`git commit -q -m "wip(overnight): checkpoint after ${label}"`);
-  log(r.code === 0 ? `checkpoint commit after ${label}` : `checkpoint commit failed: ${r.out.trim().slice(0, 300)}`);
+  log(
+    r.code === 0
+      ? `checkpoint commit after ${label}`
+      : `checkpoint commit failed: ${r.out.trim().slice(0, 300)}`,
+  );
 }
 
 const hasTag = (t) => sh(`git rev-parse -q --verify "refs/tags/${t}"`).code === 0;
 
 function claimedDone(n) {
   try {
-    return new RegExp(`^\\s*[-*]?\\s*M${n}\\s*:\\s*DONE\\b`, 'mi').test(fs.readFileSync(STATUS, 'utf8'));
+    return new RegExp(`^\\s*[-*]?\\s*M${n}\\s*:\\s*DONE\\b`, 'mi').test(
+      fs.readFileSync(STATUS, 'utf8'),
+    );
   } catch {
     return false;
   }
@@ -167,11 +189,17 @@ function keepAwake() {
         `while (Get-Process -Id ${process.pid} -ErrorAction SilentlyContinue) { Start-Sleep -Seconds 30 }`,
       ].join('; ');
       const enc = Buffer.from(script, 'utf16le').toString('base64');
-      const p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', enc], {
-        stdio: 'ignore',
-        windowsHide: true,
-      });
-      p.on('error', () => log('could not start the keep-awake helper: set Power → Sleep to Never while plugged in'));
+      const p = spawn(
+        'powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', enc],
+        {
+          stdio: 'ignore',
+          windowsHide: true,
+        },
+      );
+      p.on('error', () =>
+        log('could not start the keep-awake helper: set Power → Sleep to Never while plugged in'),
+      );
       return 'SetThreadExecutionState (Windows)';
     }
   } catch {
@@ -206,11 +234,18 @@ function claudeArgs(prompt, o, flags) {
 function runSession(prompt, label, o, flags, deadline) {
   return new Promise((resolve) => {
     sessionCount++;
-    const logFile = path.join(LOG_DIR, `${stamp()}-${String(sessionCount).padStart(2, '0')}-${label}.log`);
+    const logFile = path.join(
+      LOG_DIR,
+      `${stamp()}-${String(sessionCount).padStart(2, '0')}-${label}.log`,
+    );
     const out = fs.createWriteStream(logFile);
     const args = claudeArgs(prompt, o, flags);
     const child = isWin
-      ? spawn(['claude', ...args].map(winQuote).join(' '), { cwd: ROOT, shell: true, windowsHide: true })
+      ? spawn(['claude', ...args].map(winQuote).join(' '), {
+          cwd: ROOT,
+          shell: true,
+          windowsHide: true,
+        })
       : spawn('claude', args, { cwd: ROOT });
     let buf = '';
     let done = false;
@@ -223,11 +258,14 @@ function runSession(prompt, label, o, flags, deadline) {
     child.stdout?.on('data', onData);
     child.stderr?.on('data', onData);
     const limitAt = Math.min(deadline, Date.now() + o.sessionHours * 60 * MIN);
-    const timer = setTimeout(() => {
-      timedOut = true;
-      log(`${label}: session time limit reached, stopping it`);
-      stopTree(child);
-    }, Math.max(0, limitAt - Date.now()));
+    const timer = setTimeout(
+      () => {
+        timedOut = true;
+        log(`${label}: session time limit reached, stopping it`);
+        stopTree(child);
+      },
+      Math.max(0, limitAt - Date.now()),
+    );
     const finish = (code) => {
       if (done) return;
       done = true;
@@ -247,16 +285,24 @@ const isLimited = (res) => res.code !== 0 && !res.timedOut && LIMIT_RE.test(res.
 
 // ---------- preflight ----------
 function preflight() {
-  if (!fs.existsSync(path.join(ROOT, 'docs', 'MILESTONES.md')) || !fs.existsSync(path.join(ROOT, '.claude', 'skills', 'overnight', 'SKILL.md')))
-    die('Run this from the fin-and-fern folder (docs/MILESTONES.md or the overnight skill is missing).');
+  if (
+    !fs.existsSync(path.join(ROOT, 'docs', 'MILESTONES.md')) ||
+    !fs.existsSync(path.join(ROOT, '.claude', 'skills', 'overnight', 'SKILL.md'))
+  )
+    die(
+      'Run this from the fin-and-fern folder (docs/MILESTONES.md or the overnight skill is missing).',
+    );
   fs.mkdirSync(LOG_DIR, { recursive: true });
-  if (Number(process.versions.node.split('.')[0]) < 20) die(`Node ${process.versions.node} is too old: install Node 22+.`);
+  if (Number(process.versions.node.split('.')[0]) < 20)
+    die(`Node ${process.versions.node} is too old: install Node 22+.`);
 
   const v = sh('claude --version');
-  if (v.code !== 0) die('`claude` is not on PATH. Install Claude Code, open a new terminal, and retry.');
+  if (v.code !== 0)
+    die('`claude` is not on PATH. Install Claude Code, open a new terminal, and retry.');
   const ver = (/(\d+)\.(\d+)\.(\d+)/.exec(v.out) || []).slice(1).map(Number);
   const promptsNone = ver.length === 3 && cmpVer(ver, [2, 1, 259]) >= 0;
-  if (sh('claude auth status').code !== 0) die('Claude Code is not logged in. Run `claude`, type /login, then retry.');
+  if (sh('claude auth status').code !== 0)
+    die('Claude Code is not logged in. Run `claude`, type /login, then retry.');
   if (sh('git --version').code !== 0) die('git is not installed.');
 
   if (!fs.existsSync(path.join(ROOT, '.git'))) {
@@ -276,7 +322,9 @@ function preflight() {
 // ---------- summary ----------
 function writeSummary(reason, o, flags, deadline) {
   const tags = sh('git tag --list "m*"').out.trim().split(/\r?\n/).filter(Boolean);
-  const checks = checksPass() ? '✓ typecheck, lint and tests pass' : `✗ ${lastCheckOutput.split('\n')[0]}`;
+  const checks = checksPass()
+    ? '✓ typecheck, lint and tests pass'
+    : `✗ ${lastCheckOutput.split('\n')[0]}`;
   const commits = sh('git log --oneline -30').out.trim();
   const rows = results.map((r) => `| ${r.label} | ${r.outcome} | ${r.exit ?? ''} |`).join('\n');
   const md = `# Overnight run summary
@@ -315,15 +363,25 @@ async function main() {
   const flags = preflight();
 
   if (o.check) {
-    log(`preflight ok: ${flags.version}; --permission-prompts none ${flags.promptsNone ? 'supported' : 'not supported (older version, still fine)'}`);
+    log(
+      `preflight ok: ${flags.version}; --permission-prompts none ${flags.promptsNone ? 'supported' : 'not supported (older version, still fine)'}`,
+    );
     log('running one tiny unattended Claude session to test login, flags and permission mode…');
-    const res = await runSession('Reply with exactly the text OVERNIGHT-OK and nothing else. Do not use any tools.', 'check', o, flags, Date.now() + 10 * MIN);
+    const res = await runSession(
+      'Reply with exactly the text OVERNIGHT-OK and nothing else. Do not use any tools.',
+      'check',
+      o,
+      flags,
+      Date.now() + 10 * MIN,
+    );
     if (res.code === 0 && /OVERNIGHT-OK/.test(res.out)) {
       log(`✔ check passed. Start the real run with: node scripts/overnight.mjs --until ${o.until}`);
       process.exit(0);
     }
     console.log(res.out.slice(-1500));
-    die(`check failed (exit ${res.code}). If it mentions auto mode, retry with --mode acceptEdits. Log: ${res.logFile}`);
+    die(
+      `check failed (exit ${res.code}). If it mentions auto mode, retry with --mode acceptEdits. Log: ${res.logFile}`,
+    );
   }
 
   const awake = keepAwake();
@@ -335,7 +393,9 @@ async function main() {
     log('Ctrl+C: stopping after the current session (press again to quit immediately)');
   });
 
-  log(`overnight run until ${new Date(deadline).toLocaleString()} · M1–M${o.to}${o.improve ? ' then improvement passes' : ''} · keep-awake: ${awake}`);
+  log(
+    `overnight run until ${new Date(deadline).toLocaleString()} · M1–M${o.to}${o.improve ? ' then improvement passes' : ''} · keep-awake: ${awake}`,
+  );
 
   outer: for (let n = 1; n <= o.to; n++) {
     if (hasTag(`m${n}`) || hasTag(`m${n}-auto`)) {
@@ -362,8 +422,14 @@ async function main() {
       checkpoint(label);
       if (isLimited(res)) {
         const wait = Math.min(o.limitWaitMin * MIN, deadline - Date.now() - 20 * MIN);
-        results.push({ label, outcome: 'usage limit / overload: waited and retried', exit: res.code });
-        log(`${label}: usage limit or overload detected; waiting ${Math.max(0, Math.round(wait / MIN))} min`);
+        results.push({
+          label,
+          outcome: 'usage limit / overload: waited and retried',
+          exit: res.code,
+        });
+        log(
+          `${label}: usage limit or overload detected; waiting ${Math.max(0, Math.round(wait / MIN))} min`,
+        );
         await sleep(wait);
         continue;
       }
@@ -372,7 +438,13 @@ async function main() {
       const verified = claimed && checksPass();
       results.push({
         label,
-        outcome: verified ? '✔ verified' : claimed ? '✖ claimed DONE but checks fail' : res.timedOut ? '… time limit: continuing' : '… in progress',
+        outcome: verified
+          ? '✔ verified'
+          : claimed
+            ? '✖ claimed DONE but checks fail'
+            : res.timedOut
+              ? '… time limit: continuing'
+              : '… in progress',
         exit: res.code,
       });
       if (verified) {
@@ -401,12 +473,18 @@ async function main() {
       if (isLimited(res)) {
         const wait = Math.min(o.limitWaitMin * MIN, deadline - Date.now() - 30 * MIN);
         results.push({ label, outcome: 'usage limit / overload: waited', exit: res.code });
-        log(`${label}: usage limit or overload detected; waiting ${Math.max(0, Math.round(wait / MIN))} min`);
+        log(
+          `${label}: usage limit or overload detected; waiting ${Math.max(0, Math.round(wait / MIN))} min`,
+        );
         await sleep(wait);
         k--;
         continue;
       }
-      results.push({ label, outcome: checksPass() ? '✔ checks green' : '✖ checks red (next pass fixes first)', exit: res.code });
+      results.push({
+        label,
+        outcome: checksPass() ? '✔ checks green' : '✖ checks red (next pass fixes first)',
+        exit: res.code,
+      });
     }
   }
 
