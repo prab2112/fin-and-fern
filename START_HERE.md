@@ -12,6 +12,7 @@ This folder is a starter kit: the game design, the build plan, and Claude Code c
 | `.claude/skills/milestone` | `/milestone N`: plan → build test-first → balance → screenshots → review → report. |
 | `.claude/skills/balance` | `/balance`: run the headless sim over 20 seeds and tune numbers in JSON only. |
 | `.claude/skills/playtest` | `/playtest <notes>`: turn your phone notes into fixes with regression tests. |
+| `.claude/skills/overnight` + `scripts/overnight.mjs` | Unattended overnight build of M1–M4 plus improvement passes (section 2b). |
 | `.claude/agents/gdd-reviewer.md` | A fresh-eyes reviewer that checks each milestone against the GDD. |
 | `.claude/settings.json` | Sessions start in Plan mode; safe commands are pre-approved; force-push and key files are blocked; a Stop hook won't let Claude finish while tests fail (max 2 retries). |
 | `.mcp.json` | Playwright MCP, so Claude can open the game on an emulated 360 px phone screen, take screenshots and read console errors. |
@@ -72,6 +73,30 @@ Create a **private** GitHub repo and push to it. You'll need it for the Android 
 7. **Reset.** Run `/clear` before the next milestone. The docs carry the memory, not the chat.
 
 Run `/balance` after M2, M3, M6, M7 and M8, or whenever the pacing feels off.
+
+## 2b. Overnight run (unattended)
+
+`scripts/overnight.mjs` keeps Claude Code working while you sleep:
+
+- It builds M1 → M4 in fresh headless sessions (`claude -p "/overnight N" --permission-mode auto`).
+- It verifies each milestone itself: `docs/overnight/STATUS.md` must say `MN: DONE`, and typecheck, lint and tests must pass. Then it tags `mN-auto`.
+- It retries up to 3 sessions per milestone and waits out usage limits.
+- Once M1–M4 are done, it runs improvement passes until the deadline.
+
+```bash
+cd fin-and-fern
+node scripts/overnight.mjs --check          # 1 minute: login, flags, git: must say "check passed"
+node scripts/overnight.mjs --until 07:00    # the real run: leave this terminal open
+```
+
+- **Keep the laptop plugged in with the lid open.** The runner blocks sleep on macOS (`caffeinate`) and Windows (a power request), but closing the lid can still sleep it. On Windows, also check Settings → System → Power → "Lid close action: Do nothing" when plugged in.
+- **If the check mentions auto mode,** add `--mode acceptEdits` to both commands.
+- **Optional:** add `--model opus` for the strongest model; it uses your plan's limit faster.
+- **In the morning:**
+  1. Read `docs/overnight/RUNNER_SUMMARY.md` (what ran), `MORNING_REPORT.md` (what was built, decisions, playtest checklist) and `DECISIONS.md`.
+  2. Run `npm install`, then `npm run dev`, and open the Network URL on your phone.
+  3. Run `/playtest` with your notes. Tag `mN` (without `-auto`) once you've checked a milestone on your phone.
+- **Hard limits:** the runner never pushes, never touches Android or Play (M5 needs you), and only installs the M1 stack. Session logs are in `.overnight/logs/`.
 
 ## 3. Habits that keep the game good
 

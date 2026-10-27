@@ -8,7 +8,7 @@ disable-model-invocation: true
 Build milestone M$ARGUMENTS of Fin & Fern (the section headed "M$ARGUMENTS" in `docs/MILESTONES.md`).
 
 1. **Orient.** Run `git log --oneline -10` and `git status`. Read the M$ARGUMENTS section of `docs/MILESTONES.md`, every `docs/GDD.md` section it cites, and the rules in `CLAUDE.md`.
-2. **Prerequisites.** For M2 onwards, check that the earlier milestones are tagged (`m1`, `m2`, …) and that `npm test` is green. If not, stop and tell me what is missing.
+2. **Prerequisites.** For M2 onwards, check that the earlier milestones are tagged (`mN`, or `mN-auto` from an overnight run) and that `npm test` is green. If not, stop and tell me what is missing.
 3. **Plan before code.** The plan must list:
    - the files to add or change
    - the sim functions and their signatures

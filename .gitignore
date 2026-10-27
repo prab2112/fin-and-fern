@@ -14,6 +14,7 @@ android/keystore.properties
 # personal Claude Code settings and tool output
 .claude/settings.local.json
 .playwright-mcp/
+.overnight/
 
 # OS / editor
 .DS_Store
