@@ -1,0 +1,9 @@
+// Cloudflare deployment (Pages is now part of Workers): a static-assets site serving the
+// production build. `npm run deploy` builds with the debug tools on and uploads dist/.
+{
+  "name": "fin-and-fern",
+  "compatibility_date": "2026-10-23",
+  "assets": {
+    "directory": "./dist",
+  },
+}

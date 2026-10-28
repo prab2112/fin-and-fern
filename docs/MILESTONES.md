@@ -288,8 +288,8 @@ The summary prints median, p10 and p90 for every GDD §17 target that the curren
   - Mirror the 42 achievements.
   - 3 leaderboards: net worth, Aquadex %, most valuable fish bred.
   - The game works fully when signed out.
-- Web build as a PWA (manifest + service worker) published on Cloudflare Pages (already auto-deploying from `main`; launch turns off `VITE_DEBUG_TOOLS`).
-- A privacy policy page on Cloudflare Pages.
+- Web build as a PWA (manifest + service worker) on Cloudflare (static assets on Workers, which now includes Pages). Already live via `npm run deploy` at https://fin-and-fern.nginx-prab.workers.dev; launch drops `VITE_DEBUG_TOOLS=1` from the deploy script.
+- A privacy policy page on the same Cloudflare site.
 
 **Your steps**
 

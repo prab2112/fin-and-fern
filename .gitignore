@@ -11,6 +11,9 @@ coverage/
 *.keystore
 android/keystore.properties
 
+# Cloudflare Wrangler local state
+.wrangler/
+
 # personal Claude Code settings and tool output
 .claude/settings.local.json
 .playwright-mcp/
