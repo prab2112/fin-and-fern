@@ -288,8 +288,8 @@ The summary prints median, p10 and p90 for every GDD §17 target that the curren
   - Mirror the 42 achievements.
   - 3 leaderboards: net worth, Aquadex %, most valuable fish bred.
   - The game works fully when signed out.
-- Web build as a PWA (manifest + service worker) published to GitHub Pages.
-- A privacy policy page on GitHub Pages.
+- Web build as a PWA (manifest + service worker) published on Cloudflare Pages (already auto-deploying from `main`; launch turns off `VITE_DEBUG_TOOLS`).
+- A privacy policy page on Cloudflare Pages.
 
 **Your steps**
 

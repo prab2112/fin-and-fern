@@ -1,4 +1,5 @@
 import { DebugMenu } from './DebugMenu';
+import { DEBUG_TOOLS } from './devTools';
 import { FishGallery } from './FishGallery';
 import { FishSheet } from './FishSheet';
 import { SettingsSheet } from './SettingsSheet';
@@ -18,8 +19,8 @@ export function App() {
       <Toasts />
       {sheet?.kind === 'fish' && <FishSheet fishId={sheet.fishId} />}
       {sheet?.kind === 'settings' && <SettingsSheet />}
-      {sheet?.kind === 'debug' && import.meta.env.DEV && <DebugMenu />}
-      {sheet?.kind === 'gallery' && import.meta.env.DEV && <FishGallery />}
+      {sheet?.kind === 'debug' && DEBUG_TOOLS && <DebugMenu />}
+      {sheet?.kind === 'gallery' && DEBUG_TOOLS && <FishGallery />}
     </div>
   );
 }

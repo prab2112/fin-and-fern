@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { decodeExport, encodeExport } from '../save/exportCode';
+import { DEBUG_TOOLS } from './devTools';
 import { Sheet } from './Sheet';
 import { useGame, useServices } from './storeContext';
 
@@ -65,10 +66,10 @@ export function SettingsSheet() {
         </button>
       </section>
       {message && <p className="note">{message}</p>}
-      {import.meta.env.DEV && (
+      {DEBUG_TOOLS && (
         <button type="button" className="action" onClick={() => close({ kind: 'debug' })}>
           <span className="action-label">Debug menu</span>
-          <span className="action-sub">dev builds only</span>
+          <span className="action-sub">test builds only</span>
         </button>
       )}
     </Sheet>

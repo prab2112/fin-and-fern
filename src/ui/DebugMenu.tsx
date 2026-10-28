@@ -3,7 +3,7 @@ import { newGame } from '../sim/newGame';
 import { Sheet } from './Sheet';
 import { useGame, useServices } from './storeContext';
 
-/** Dev builds only (import.meta.env.DEV). */
+/** Dev and test builds only (see devTools.ts). */
 export function DebugMenu() {
   const { store, nowMs } = useServices();
   const close = useGame((s) => s.openSheet);
