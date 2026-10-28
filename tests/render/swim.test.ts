@@ -57,22 +57,30 @@ const depthFrac = (s: Swimmers, v: ReturnType<typeof view>) => () => {
 
 describe('swimmers', () => {
   it('every species stays inside the tank', () => {
+    // Checked in plain JS and asserted once: an expect() per fish per frame is far too slow.
+    let firstEscape = '';
     for (const id of Object.keys(TEMPERAMENT)) {
       const { v, s } = school(id, 6, 3);
-      for (let k = 0; k < 60 / DT; k++) {
+      for (let k = 0; k < 60 / DT && !firstEscape; k++) {
         s.step(DT, v, NO_FOOD);
         for (let i = 0; i < s.count; i++) {
           const f = s.fish[i];
           if (!f) continue;
-          expect(f.x, id).toBeGreaterThanOrEqual(0);
-          expect(f.x, id).toBeLessThanOrEqual(v.w);
-          expect(f.z, id).toBeGreaterThanOrEqual(0);
-          expect(f.z, id).toBeLessThanOrEqual(v.depth);
-          expect(f.y, id).toBeGreaterThanOrEqual(v.surface);
-          expect(f.y, id).toBeLessThanOrEqual(floorY(v, f.z));
+          const inside =
+            f.x >= 0 &&
+            f.x <= v.w &&
+            f.z >= 0 &&
+            f.z <= v.depth &&
+            f.y >= v.surface &&
+            f.y <= floorY(v, f.z);
+          if (!inside) {
+            firstEscape = `${id} #${i} at (${f.x.toFixed(1)}, ${f.y.toFixed(1)}, ${f.z.toFixed(1)}) after ${(k * DT).toFixed(2)} s`;
+            break;
+          }
         }
       }
     }
+    expect(firstEscape).toBe('');
   });
 
   it('turns smoothly: heading never jumps faster than the turn rate', () => {
