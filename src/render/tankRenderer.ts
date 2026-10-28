@@ -1,8 +1,7 @@
 import { content } from '../content';
-import { fishValue, isSick } from '../sim/fish';
+import { isSick } from '../sim/fish';
 import { stageOf } from '../sim/stage';
 import type { Fish, Tank } from '../sim/types';
-import { wq as waterQuality } from '../sim/water';
 import {
   buildBackdrop,
   buildFrontOverlay,
@@ -25,6 +24,7 @@ import {
 } from './plants';
 import { floorY, makeView, resizeView, scaleAt, screenX, screenY } from './projection';
 import { QualityGovernor } from './quality';
+import { pickShown, reactionsFor } from './reactions';
 import { MAX_SWIMMERS, Swimmers } from './swim';
 import { DEFAULT_TEMPERAMENT, TEMPERAMENT } from './temperament';
 
@@ -214,37 +214,8 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
 
   /** How the fish reacts to its tank: speed, gasping, begging, resting, breathing. */
   function applyEnv(i: number, f: Fish, tank: Tank) {
-    const sp = content.speciesById[f.speciesId];
-    const wq = waterQuality(tank.dirt);
-    const wqBelow = content.balance.health.wqProblemBelow;
-    const wqLow = wq < wqBelow;
-    const cold = sp ? tank.tempC < sp.tempMin : false;
-    const hot = sp ? tank.tempC > sp.tempMax : false;
-    const sick = isSick(f);
-    const starving = f.hunger > content.balance.health.hungerProblemAbove;
-    const hungry = f.hunger > content.balance.alerts.hungerAbove;
-    let speedMul = 1;
-    if (sick) speedMul *= 0.45;
-    if (cold) speedMul *= 0.6;
-    if (starving) speedMul *= 0.8;
-    if (hot) speedMul *= 1.1;
-    if (wq < content.balance.health.wqSevereBelow) speedMul *= 0.75;
-    let gaspP =
-      wq < content.balance.health.wqSevereBelow
-        ? 0.7
-        : wq < content.balance.health.wqProblemBelow
-          ? 0.3
-          : 0;
-    if (hot) gaspP += 0.25;
-    const begP = sick ? 0 : starving ? 0.25 : hungry ? 0.45 : 0.03;
-    const restP = sick ? 0.85 : starving ? 0.2 : cold ? 0.35 : 0;
-    const sum = gaspP + begP + restP;
-    const k = sum > 0.95 ? 0.95 / sum : 1;
-    const stress = Math.min(
-      1,
-      Math.max(wqLow ? (wqBelow - wq) / wqBelow + 0.3 : 0, hot ? 0.6 : 0, sick ? 0.5 : 0),
-    );
-    swim.setEnv(i, speedMul, gaspP * k, begP * k, restP * k, stress);
+    const r = reactionsFor(f, tank);
+    swim.setEnv(i, r.speedMul, r.gaspP, r.begP, r.restP, r.stress);
   }
 
   function lookKeyOf(f: Fish): number {
@@ -308,13 +279,7 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
     }
 
     // GDD §14 safeguard: draw the 60 most valuable fish and show "+N".
-    let shown: readonly Fish[] = tank.fish;
-    if (tank.fish.length > MAX_SWIMMERS) {
-      const price = (f: Fish) => content.speciesById[f.speciesId]?.basePrice ?? 0;
-      shown = [...tank.fish]
-        .sort((a, b) => fishValue(b, price(b)) - fishValue(a, price(a)))
-        .slice(0, MAX_SWIMMERS);
-    }
+    const shown = pickShown(tank.fish, MAX_SWIMMERS);
     const hidden = tank.fish.length - shown.length;
     hiddenLabel = hidden > 0 ? `+${hidden}` : '';
 

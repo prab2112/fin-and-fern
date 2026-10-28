@@ -206,6 +206,23 @@ describe('debug actions', () => {
     ).toBe(30);
   });
 
+  it('debug values are clamped so the save stays valid', () => {
+    const clean = applyAction(
+      withTankA(newGame(1), { dirt: 10 }),
+      { type: 'debugAddDirt', tankId: 1, amount: -50 },
+      rng(),
+    );
+    expect(tankA(clean).dirt).toBe(0);
+    expect(
+      tankA(applyAction(newGame(1), { type: 'debugSickFish', tankId: 1, hp: -5 }, rng())).fish[0]
+        ?.hp,
+    ).toBe(0);
+    expect(
+      tankA(applyAction(newGame(1), { type: 'debugSickFish', tankId: 1, hp: 500 }, rng())).fish[0]
+        ?.hp,
+    ).toBe(100);
+  });
+
   it('makes the first fish in a tank sick', () => {
     const s = applyAction(newGame(1), { type: 'debugSickFish', tankId: 1, hp: 30 }, rng());
     expect(tankA(s).fish[0]?.hp).toBe(30);

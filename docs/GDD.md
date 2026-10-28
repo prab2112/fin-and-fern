@@ -487,7 +487,7 @@ Pearls are a soft currency earned only by playing.
 - **Fish react to the sim** (pillar 1), in the renderer only (the sim is unchanged):
   - Food: flakes float, then sink and settle; each fish chases the nearest flake and snaps it up (a little splash at the surface). Foragers tip nose-down and peck the gravel, kicking up small puffs of debris. Bellies look rounder after a meal and pinched when starving.
   - Hunger > 60: fish come to the front glass and pace along it, now and then holding nose-to-glass, facing the viewer (begging).
-  - WQ < 50: fish gasp at the surface and breathe faster; more particles and a murky tint.
+  - Any dirt clouds the water: the murky green-brown tint and the suspended particles grow with D, and the particles turn brown above D = 35. WQ < 50: fish gasp at the surface and breathe faster; WQ < 25: most of them, and they slow down.
   - Outside the species' temperature range: sluggish when cold (resting low), faster breathing and more surface time when hot.
   - Sick (HP < 40): paler, clamped fins, slow, resting near the bottom, with the sick icon.
   - A tap on the glass that misses every fish startles nearby fish into a burst away; most then hide by the nearest plant for a few seconds.

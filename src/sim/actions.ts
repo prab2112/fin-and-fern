@@ -112,7 +112,10 @@ export function applyAction(state: GameState, action: Action, rng: Rng): GameSta
     case 'debugAddDirt': {
       const tank = findTank(action.tankId);
       if (!tank) return reject(state, action, 'noTank');
-      return replaceTank(state, { ...tank, dirt: Math.min(100, tank.dirt + action.amount) });
+      return replaceTank(state, {
+        ...tank,
+        dirt: Math.min(100, Math.max(0, tank.dirt + action.amount)),
+      });
     }
 
     case 'debugSickFish': {
@@ -120,7 +123,8 @@ export function applyAction(state: GameState, action: Action, rng: Rng): GameSta
       if (!tank) return reject(state, action, 'noTank');
       const [first, ...rest] = tank.fish;
       if (!first) return reject(state, action, 'empty');
-      return replaceTank(state, { ...tank, fish: [{ ...first, hp: action.hp }, ...rest] });
+      const hp = Math.min(balance.health.hpMax, Math.max(0, action.hp));
+      return replaceTank(state, { ...tank, fish: [{ ...first, hp }, ...rest] });
     }
   }
 }

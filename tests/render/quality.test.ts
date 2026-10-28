@@ -48,7 +48,7 @@ describe('adaptive quality (GDD §14)', () => {
     t += 5000;
     t = run(q, t, 60, 1.5);
     t += 3000;
-    t = run(q, t, 60, 3);
+    run(q, t, 60, 3);
     expect(q.quality).toBe(QUALITY_MAX);
   });
 

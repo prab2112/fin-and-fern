@@ -131,7 +131,8 @@ export class Particles {
   /** Scatters motes through the water (on resize). */
   seedMotes(v: View): void {
     const r = this.rand;
-    for (const m of this.motes) {
+    for (let ix = 0; ix < this.motes.length; ix++) {
+      const m = this.motes[ix] as Mote;
       m.x = r() * v.w;
       m.z = r() * v.depth;
       m.y = v.surface + r() * (floorY(v, m.z) - v.surface);
@@ -143,7 +144,10 @@ export class Particles {
   }
 
   clearFood(): void {
-    for (const f of this.flakes) f.alive = false;
+    for (let ix = 0; ix < this.flakes.length; ix++) {
+      const f = this.flakes[ix] as FoodFlake;
+      f.alive = false;
+    }
   }
 
   /** A pinch of flakes lands on the surface, floats a moment, then sinks. */
@@ -152,7 +156,8 @@ export class Particles {
     const cx = v.w * (0.35 + 0.3 * r());
     const cz = v.depth * (0.15 + 0.35 * r());
     let made = 0;
-    for (const f of this.flakes) {
+    for (let ix = 0; ix < this.flakes.length; ix++) {
+      const f = this.flakes[ix] as FoodFlake;
       if (made >= count) break;
       if (f.alive) continue;
       made++;
@@ -176,7 +181,8 @@ export class Particles {
   }
 
   ripple(x: number, z: number, max: number): void {
-    for (const p of this.ripples)
+    for (let ix = 0; ix < this.ripples.length; ix++) {
+      const p = this.ripples[ix] as Ripple;
       if (!p.alive) {
         p.alive = true;
         p.x = x;
@@ -185,11 +191,13 @@ export class Particles {
         p.max = max;
         return;
       }
+    }
   }
 
   /** A fish pecked the gravel: a little debris drifts up and settles. */
   puff(x: number, y: number, z: number): void {
-    for (const p of this.puffs)
+    for (let ix = 0; ix < this.puffs.length; ix++) {
+      const p = this.puffs[ix] as Puff;
       if (!p.alive) {
         p.alive = true;
         p.x = x;
@@ -198,11 +206,13 @@ export class Particles {
         p.age = 0;
         return;
       }
+    }
   }
 
   /** A tap on the front glass leaves a fading ring. */
   ring(sx: number, sy: number): void {
-    for (const p of this.rings)
+    for (let ix = 0; ix < this.rings.length; ix++) {
+      const p = this.rings[ix] as Ring;
       if (!p.alive) {
         p.alive = true;
         p.x = sx;
@@ -210,12 +220,14 @@ export class Particles {
         p.age = 0;
         return;
       }
+    }
   }
 
   step(dt: number, v: View, src: BubbleSource | null, dirt: number): void {
     const r = this.rand;
 
-    for (const f of this.flakes) {
+    for (let ix = 0; ix < this.flakes.length; ix++) {
+      const f = this.flakes[ix] as FoodFlake;
       // A flake snapped up from the surface leaves a little ripple.
       if (!f.alive && f.wasAlive && f.phase === 0) this.ripple(f.x, f.z, 5 + r() * 4);
       f.wasAlive = f.alive;
@@ -253,7 +265,8 @@ export class Particles {
       this.bubbleClock -= dt;
       if (this.bubbleClock <= 0) {
         this.bubbleClock = 0.05 + r() * 0.07;
-        for (const b of this.bubbles)
+        for (let ix = 0; ix < this.bubbles.length; ix++) {
+          const b = this.bubbles[ix] as Bubble;
           if (!b.alive) {
             b.alive = true;
             b.inTube = true;
@@ -265,8 +278,10 @@ export class Particles {
             b.wobble = r() * TAU;
             break;
           }
+        }
       }
-      for (const b of this.bubbles) {
+      for (let ix = 0; ix < this.bubbles.length; ix++) {
+        const b = this.bubbles[ix] as Bubble;
         if (!b.alive) continue;
         b.vy = Math.min(150 + b.r * 30, b.vy + 260 * dt);
         b.y -= b.vy * dt;
@@ -307,17 +322,20 @@ export class Particles {
       else if (m.y < v.surface) m.y = fy - 2;
     }
 
-    for (const p of this.ripples) {
+    for (let ix = 0; ix < this.ripples.length; ix++) {
+      const p = this.ripples[ix] as Ripple;
       if (!p.alive) continue;
       p.age += dt;
       if (p.age > 1.4) p.alive = false;
     }
-    for (const p of this.rings) {
+    for (let ix = 0; ix < this.rings.length; ix++) {
+      const p = this.rings[ix] as Ring;
       if (!p.alive) continue;
       p.age += dt;
       if (p.age > 0.6) p.alive = false;
     }
-    for (const p of this.puffs) {
+    for (let ix = 0; ix < this.puffs.length; ix++) {
+      const p = this.puffs[ix] as Puff;
       if (!p.alive) continue;
       p.age += dt;
       if (p.age > PUFF_LIFE_S) p.alive = false;
@@ -326,14 +344,18 @@ export class Particles {
 
   liveFlakes(): number {
     let n = 0;
-    for (const f of this.flakes) if (f.alive) n++;
+    for (let ix = 0; ix < this.flakes.length; ix++) {
+      const f = this.flakes[ix] as FoodFlake;
+      if (f.alive) n++;
+    }
     return n;
   }
 
   // ---------------------------------------------------------------- drawing
 
   drawFlakes(ctx: CanvasRenderingContext2D, v: View): void {
-    for (const f of this.flakes) {
+    for (let ix = 0; ix < this.flakes.length; ix++) {
+      const f = this.flakes[ix] as FoodFlake;
       if (!f.alive) continue;
       const p = scaleAt(v, f.z);
       const s = f.size * p;
@@ -351,7 +373,8 @@ export class Particles {
 
   drawBubbles(ctx: CanvasRenderingContext2D, v: View): void {
     ctx.lineWidth = 0.8;
-    for (const b of this.bubbles) {
+    for (let ix = 0; ix < this.bubbles.length; ix++) {
+      const b = this.bubbles[ix] as Bubble;
       if (!b.alive) continue;
       const p = scaleAt(v, b.z);
       const x = screenX(v, b.x, b.z);
@@ -390,7 +413,8 @@ export class Particles {
   drawRipples(ctx: CanvasRenderingContext2D, v: View): void {
     ctx.strokeStyle = '#e6fbff';
     ctx.lineWidth = 1;
-    for (const p of this.ripples) {
+    for (let ix = 0; ix < this.ripples.length; ix++) {
+      const p = this.ripples[ix] as Ripple;
       if (!p.alive) continue;
       const k = p.age / 1.4;
       const s = scaleAt(v, p.z);
@@ -405,7 +429,8 @@ export class Particles {
 
   drawPuffs(ctx: CanvasRenderingContext2D, v: View): void {
     ctx.fillStyle = '#8a7a60';
-    for (const p of this.puffs) {
+    for (let ix = 0; ix < this.puffs.length; ix++) {
+      const p = this.puffs[ix] as Puff;
       if (!p.alive) continue;
       const k = p.age / PUFF_LIFE_S;
       const s = scaleAt(v, p.z);
@@ -431,7 +456,8 @@ export class Particles {
   drawRings(ctx: CanvasRenderingContext2D): void {
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 1.5;
-    for (const p of this.rings) {
+    for (let ix = 0; ix < this.rings.length; ix++) {
+      const p = this.rings[ix] as Ring;
       if (!p.alive) continue;
       const k = p.age / 0.6;
       ctx.globalAlpha = 0.45 * (1 - k);
