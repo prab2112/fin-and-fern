@@ -85,9 +85,9 @@ export function makePose(): Pose {
 }
 
 /**
- * Paints cached per fish, made when its look changes (never per frame). The body, markings,
- * gill line and outline are baked into a small sprite, so each frame draws one image instead of a
- * clipped pattern and a stroke; tail, fins, sheen, pectoral fins, mouth and eye stay live.
+ * Paints cached per fish, made when its look changes (never per frame). The body, markings and
+ * outline are baked into a small sprite, so each frame draws one image instead of a clipped
+ * pattern and a stroke; tail, fins, sheen, gill cover, pectoral fins, mouth and eye stay live.
  */
 export interface FishGfx {
   body: CanvasGradient;
@@ -125,7 +125,7 @@ function countershade(
   return body;
 }
 
-/** Bakes body, markings, gill line and outline at `pxPerUnit` device px per body unit. */
+/** Bakes body, markings and outline at `pxPerUnit` device px per body unit. */
 function bakeBody(look: FishLook, pxPerUnit: number, gfx: FishGfx): void {
   const s = look.shape;
   const hT = s.hTop;
@@ -164,12 +164,6 @@ function bakeBody(look: FishLook, pxPerUnit: number, gfx: FishGfx): void {
       }
     g.stroke();
   }
-  g.strokeStyle = GILL;
-  g.lineWidth = 1.6;
-  g.beginPath();
-  g.moveTo(30, -hT * 0.55 + s.noseY);
-  g.quadraticCurveTo(23, s.noseY, 30, hB * 0.55 + s.noseY);
-  g.stroke();
   g.restore();
   g.strokeStyle = OUTLINE;
   g.lineWidth = Math.max(0.6, 1.5 / pxPerUnit);
@@ -801,6 +795,15 @@ export function drawFish(
     ctx.fill();
     ctx.restore();
     ctx.globalAlpha = look.alpha;
+
+    // Gill cover, flaring with each breath (faster when stressed).
+    ctx.strokeStyle = GILL;
+    ctx.lineWidth = 1.6;
+    const gx = 31 - pose.gill * 1.5;
+    ctx.beginPath();
+    ctx.moveTo(gx, -hT * 0.55 + s.noseY);
+    ctx.quadraticCurveTo(gx - 6 - pose.gill * 2, s.noseY, gx, hB * 0.55 + s.noseY);
+    ctx.stroke();
 
     // Pectoral fin sculling.
     ctx.fillStyle = gfx.pec;

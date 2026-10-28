@@ -24,6 +24,7 @@ import {
   type PlantView,
 } from './plants';
 import { floorY, makeView, resizeView, scaleAt, screenX, screenY } from './projection';
+import { QualityGovernor } from './quality';
 import { MAX_SWIMMERS, Swimmers } from './swim';
 import { DEFAULT_TEMPERAMENT, TEMPERAMENT } from './temperament';
 
@@ -63,20 +64,10 @@ const STAGE_SCALE = { fry: 0.4, juvenile: 0.7, adult: 1 } as const;
 const HAZE_LEVELS = [0.66, 0.33];
 const BACKDROP_CACHE = 3;
 
-/**
- * Adaptive quality: the renderer watches its own frame rate and steps down when a device can't
- * keep up (light and plants refresh less often, less haze, fine detail only on larger fish; at the
- * lowest level no moving light, motes or shadows), then tries stepping back up after a stretch of
- * smooth frames.
- */
-const QUALITY_MAX = 2;
+/** Per quality level (see quality.ts): how often light and plants refresh, and the smallest fish
+ *  (body px on screen) that still gets full detail. */
 const REFRESH_EVERY = [12, 6, 3];
 const DETAIL_MIN_PX = [26, 18, 13];
-const QUALITY_WINDOW_MS = 2000;
-const QUALITY_DOWN_FPS = 48;
-const QUALITY_UP_FPS = 58;
-const QUALITY_UP_AFTER_MS = 10_000;
-const QUALITY_UP_BACKOFF_MS = 60_000;
 const HAZE = '#14505c';
 
 export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
@@ -126,41 +117,21 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
   let showFps = false;
   let fpsText = '';
   let frames = 0;
-  let drawMsSum = 0;
   let lastFps = 0;
   let lastMs = 0;
-  let fpsT0 = performance.now();
-  let last = performance.now();
   let raf = 0;
   let disposed = false;
-  let quality = QUALITY_MAX;
-  let qT0 = performance.now();
-  let qFrames = 0;
-  let smoothMs = 0;
-  let steppedUpAt = -Infinity;
-  let upBlockedUntil = 0;
-
-  function adaptQuality(now: number) {
-    qFrames++;
-    const span = now - qT0;
-    if (span < QUALITY_WINDOW_MS) return;
-    const fps = (qFrames * 1000) / span;
-    if (fps < QUALITY_DOWN_FPS && quality > 0) {
-      // A step up that didn't hold: don't retry for a while.
-      if (now - steppedUpAt < QUALITY_WINDOW_MS * 3) upBlockedUntil = now + QUALITY_UP_BACKOFF_MS;
-      quality--;
-      smoothMs = 0;
-    } else if (fps >= QUALITY_UP_FPS) {
-      smoothMs += span;
-      if (smoothMs >= QUALITY_UP_AFTER_MS && quality < QUALITY_MAX && now >= upBlockedUntil) {
-        quality++;
-        steppedUpAt = now;
-        smoothMs = 0;
-      }
-    } else smoothMs = 0;
-    qFrames = 0;
-    qT0 = now;
-  }
+  let lastTank: Tank | null = null;
+  // Frame timing lives in a typed array: writing doubles there doesn't allocate, unlike
+  // reassigning closure variables every frame.
+  const LAST = 0;
+  const FPS_T0 = 1;
+  const DRAW_MS = 2;
+  const tm = new Float64Array(3);
+  tm[LAST] = performance.now();
+  tm[FPS_T0] = tm[LAST] as number;
+  const governor = new QualityGovernor(performance.now());
+  let quality = governor.quality;
 
   /** Plants double as cover that frightened fish hide by. */
   function updateCover() {
@@ -195,7 +166,9 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
   /** On resize: everything sized to the canvas is rebuilt. */
   function rebuildStatic() {
     backdropCache.clear();
-    useBackdrop();
+    // No tank yet (first layout): the backdrop is built when one arrives.
+    if (tankId >= 0) useBackdrop();
+    else backdrop = null;
     front = buildFrontOverlay(view, dpr);
     lightLayer = makeLightLayer(view);
     plants.forEach((pv, i) => {
@@ -227,6 +200,9 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
     lookKey.fill(-1);
     plantSig = null;
     rebuildStatic();
+    // Re-sync now (plant layout, fish sizes, sprites) rather than waiting for the next store
+    // update, which may be a long way off while the game is paused.
+    if (lastTank) setTank(lastTank);
   }
 
   function fishLength(f: Fish): number {
@@ -240,6 +216,8 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
   function applyEnv(i: number, f: Fish, tank: Tank) {
     const sp = content.speciesById[f.speciesId];
     const wq = waterQuality(tank.dirt);
+    const wqBelow = content.balance.health.wqProblemBelow;
+    const wqLow = wq < wqBelow;
     const cold = sp ? tank.tempC < sp.tempMin : false;
     const hot = sp ? tank.tempC > sp.tempMax : false;
     const sick = isSick(f);
@@ -264,7 +242,7 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
     const k = sum > 0.95 ? 0.95 / sum : 1;
     const stress = Math.min(
       1,
-      Math.max(wq < 50 ? (50 - wq) / 50 + 0.3 : 0, hot ? 0.6 : 0, sick ? 0.5 : 0),
+      Math.max(wqLow ? (wqBelow - wq) / wqBelow + 0.3 : 0, hot ? 0.6 : 0, sick ? 0.5 : 0),
     );
     swim.setEnv(i, speedMul, gaspP * k, begP * k, restP * k, stress);
   }
@@ -291,6 +269,7 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
   }
 
   function setTank(tank: Tank | null) {
+    lastTank = tank;
     if (!tank) {
       while (swim.count > 0) swim.removeAt(swim.count - 1);
       slotOf.clear();
@@ -508,8 +487,9 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
   function frame(now: number) {
     if (disposed) return;
     const t0 = performance.now();
-    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
-    last = now;
+    const dt = Math.min(0.05, Math.max(0, (now - (tm[LAST] as number)) / 1000));
+    tm[LAST] = now;
+    quality = governor.frame(now);
     const t = now / 1000;
     const b = backdrop;
 
@@ -583,16 +563,17 @@ export function createTankRenderer(canvas: HTMLCanvasElement): TankRenderer {
       ctx.fillText(hiddenLabel, view.w - 50, 27);
     }
 
-    adaptQuality(now);
     frames++;
-    drawMsSum += performance.now() - t0;
-    if (now - fpsT0 >= 1000) {
-      lastFps = Math.round((frames * 1000) / (now - fpsT0));
-      lastMs = drawMsSum / frames;
-      fpsText = `${lastFps} fps · ${lastMs.toFixed(1)} ms · Q${quality} · ${swim.count} fish`;
+    tm[DRAW_MS] = (tm[DRAW_MS] as number) + (performance.now() - t0);
+    if (now - (tm[FPS_T0] as number) >= 1000) {
+      lastFps = Math.round((frames * 1000) / (now - (tm[FPS_T0] as number)));
+      lastMs = (tm[DRAW_MS] as number) / frames;
+      // The overlay text is only built while the overlay is on.
+      if (showFps)
+        fpsText = `${lastFps} fps · ${lastMs.toFixed(1)} ms · Q${quality} · ${swim.count} fish`;
       frames = 0;
-      drawMsSum = 0;
-      fpsT0 = now;
+      tm[DRAW_MS] = 0;
+      tm[FPS_T0] = now;
     }
     if (showFps) {
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
